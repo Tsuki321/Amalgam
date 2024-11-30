@@ -668,6 +668,14 @@ namespace Vars
 			CVar(F2PChatBypass, false)
 		SUBNAMESPACE_END(Game)
 
+		SUBNAMESPACE_BEGIN(SkinChanger)
+			CVar(SkinIndex, 0, NOSAVE)
+			CVar(UnusualIndex, 0, NOSAVE)
+			CVar(SheenIndex, 0, NOSAVE)
+			CVar(EyeIndex, 0, NOSAVE)
+			CVar(Attributes, 0, NOSAVE)
+		SUBNAMESPACE_END(SkinChanger)
+
 		SUBNAMESPACE_BEGIN(Queueing)
 			CVarEnum(ForceRegions, 0b0, NONE, // i'm not sure all of these are actually used for tf2 servers
 				// North America
