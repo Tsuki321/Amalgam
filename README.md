@@ -38,3 +38,5 @@
 #
 
 VAC bypass recommended
+
+Dunno wtf i am doing here, i am not proficient with C as such if yall know what to do then go ahead, i only know Java.
