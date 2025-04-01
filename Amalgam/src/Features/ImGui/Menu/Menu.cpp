@@ -1197,6 +1197,8 @@ void CMenu::MenuMisc(int iTab)
 				FToggle("Auto accept item drops", Vars::Misc::Automation::AcceptItemDrops, FToggle_Right);
 				FToggle("Auto F2 ignored", Vars::Misc::Automation::AutoF2Ignored, FToggle_Left);
 				FToggle("Auto F1 priority", Vars::Misc::Automation::AutoF1Priority, FToggle_Right);
+				FToggle("Auto disguise on backstab", Vars::Misc::Automation::AutoDisguiseOnBackstab, FToggle_Left);
+				FToggle("Auto vaccinator", Vars::Misc::Automation::AutoVaccinator, FToggle_Right);
 			} EndSection();
 
 			/* Column 2 */

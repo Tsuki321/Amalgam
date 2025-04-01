@@ -36,6 +36,9 @@ public:
 	void LockAchievements();
 	bool SteamRPC();
 
+	void AutoDisguiseOnBackstab(IGameEvent* pEvent);
+	void AutoVaccinator(CTFPlayer* pLocal, CUserCmd* pCmd);
+
 	int m_iWishCmdrate = -1;
 	int m_iWishUpdaterate = -1;
 };

@@ -16,6 +16,7 @@ void CMisc::RunPre(CTFPlayer* pLocal, CUserCmd* pCmd)
 
 	AntiAFK(pLocal, pCmd);
 	InstantRespawnMVM(pLocal);
+	AutoVaccinator(pLocal, pCmd);
 
 	if (!pLocal->IsAlive() || pLocal->IsAGhost() || pLocal->m_MoveType() != MOVETYPE_WALK || pLocal->IsSwimming() || pLocal->InCond(TF_COND_SHIELD_CHARGE) || pLocal->InCond(TF_COND_HALLOWEEN_KART))
 		return;
@@ -465,6 +466,10 @@ void CMisc::Event(IGameEvent* pEvent, uint32_t uHash)
 		break;
 	case FNV1A::Hash32Const("player_spawn"):
 		m_bPeekPlaced = false;
+		break;
+	case FNV1A::Hash32Const("player_death"):
+		AutoDisguiseOnBackstab(pEvent);
+		break;
 	}
 }
 
@@ -637,4 +642,1021 @@ bool CMisc::SteamRPC()
 	I::SteamFriends->SetRichPresence("steam_player_group_size", std::to_string(Vars::Misc::Steam::GroupSize.Value).c_str());
 
 	return true;
+}
+
+void CMisc::AutoDisguiseOnBackstab(IGameEvent* pEvent)
+{
+	// Skip if the feature is disabled
+	if (!Vars::Misc::Automation::AutoDisguiseOnBackstab.Value)
+		return;
+
+	// Debug output - always print this message to check if function is being called
+	I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Event received\"");
+	
+	// Validate event
+	if (!pEvent)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Event is null!\"");
+		return;
+	}
+
+	char eventName[64];
+	try {
+		strcpy_s(eventName, pEvent->GetName());
+		char debugMsg[128];
+		sprintf_s(debugMsg, "echo \"Auto Disguise: Event name = %s\"", eventName);
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	}
+	catch (...) {
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Failed to get event name\"");
+	}
+
+	// Get the local player
+	CTFPlayer* pLocal = H::Entities.GetLocal()->As<CTFPlayer>();
+	if (!pLocal || !pLocal->IsAlive())
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Local player not available\"");
+		return;
+	}
+
+	// Verify that the kill was done by the local player
+	const int iAttacker = I::EngineClient->GetPlayerForUserID(pEvent->GetInt("attacker"));
+	const int localPlayerIdx = I::EngineClient->GetLocalPlayer();
+	
+	char debugMsg[128];
+	sprintf_s(debugMsg, "echo \"Auto Disguise: Attacker=%d, Local=%d\"", iAttacker, localPlayerIdx);
+	I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	
+	if (iAttacker != localPlayerIdx)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Not our kill\"");
+		return;
+	}
+
+	// Check if it was a backstab
+	const int iCustomKill = pEvent->GetInt("customkill");
+	sprintf_s(debugMsg, "echo \"Auto Disguise: CustomKill=%d, Need=%d\"", iCustomKill, TF_DMG_CUSTOM_BACKSTAB);
+	I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	
+	if (iCustomKill != TF_DMG_CUSTOM_BACKSTAB)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Not a backstab\"");
+		return;
+	}
+
+	I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Backstab confirmed!\"");
+
+	// Get the victim
+	const int iVictim = I::EngineClient->GetPlayerForUserID(pEvent->GetInt("userid"));
+	IClientEntity* pVictimEntity = I::ClientEntityList->GetClientEntity(iVictim);
+	if (!pVictimEntity)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Victim entity not found\"");
+		return;
+	}
+
+	CTFPlayer* pVictim = pVictimEntity->As<CTFPlayer>();
+	if (!pVictim)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Victim is not a player\"");
+		return;
+	}
+
+	// Get the local player's active weapon
+	CTFWeaponBase* pWeapon = pLocal->m_hActiveWeapon().Get()->As<CTFWeaponBase>();
+	if (!pWeapon || pWeapon->GetWeaponID() != TF_WEAPON_KNIFE)
+	{
+		sprintf_s(debugMsg, "echo \"Auto Disguise: Not using knife, WeaponID=%d\"", 
+			pWeapon ? pWeapon->GetWeaponID() : -1);
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+		return;
+	}
+
+	// Check if the knife is Your Eternal Reward - this knife auto-disguises, so we skip
+	if (pWeapon->m_iItemDefinitionIndex() == Spy_t_YourEternalReward)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Skipping - using YER\"");
+		return;
+	}
+
+	I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Processing disguise...\"");
+
+	// Get the victim's class
+	const int iVictimClass = pVictim->m_iClass();
+	sprintf_s(debugMsg, "echo \"Auto Disguise: Victim class=%d\"", iVictimClass);
+	I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+
+	// Skip disguising as Heavy, Demoman, or Soldier if specified
+	if (iVictimClass == 6 || iVictimClass == 4 || iVictimClass == 3) // 6=Heavy, 4=Demo, 3=Soldier
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Disguise: Victim is Heavy/Demo/Soldier, looking for alternatives...\"");
+		
+		// Try to find a nearby player to disguise as instead
+		std::vector<std::pair<float, CBaseEntity*>> vNearbyPlayers;
+		
+		for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+		{
+			auto pPlayer = pEntity->As<CTFPlayer>();
+			if (!pPlayer || !pPlayer->IsAlive() || pPlayer->IsAGhost() || pPlayer == pVictim)
+				continue;
+
+			const int iClass = pPlayer->m_iClass();
+			if (iClass == 6 || iClass == 4 || iClass == 3) // 6=Heavy, 4=Demo, 3=Soldier
+				continue;
+				
+			const float flDistance = pLocal->m_vecOrigin().DistTo(pPlayer->m_vecOrigin());
+			vNearbyPlayers.emplace_back(flDistance, pEntity);
+		}
+
+		// If we found any suitable players, disguise as the closest one
+		if (!vNearbyPlayers.empty())
+		{
+			std::sort(vNearbyPlayers.begin(), vNearbyPlayers.end(),
+				[](const auto& a, const auto& b) { return a.first < b.first; });
+
+			auto pNearestPlayer = vNearbyPlayers.front().second->As<CTFPlayer>();
+			if (pNearestPlayer)
+			{
+				// Disguise as the nearest player - use class number and opposite team (-1)
+				char cmd[64];
+				sprintf_s(cmd, "disguise %d -1", pNearestPlayer->m_iClass());
+				I::EngineClient->ClientCmd_Unrestricted(cmd);
+				
+				char debugMsg[128];
+				sprintf_s(debugMsg, "echo \"Auto Disguise: Disguising as nearby player class %d\"", pNearestPlayer->m_iClass());
+				I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+				return;
+			}
+		}
+		
+		// If no suitable players were found, just disguise as a random non-excluded class
+		int iClass = rand() % 9 + 1;  // Random class between 1-9
+		while (iClass == 6 || iClass == 4 || iClass == 3) // 6=Heavy, 4=Demo, 3=Soldier
+		{
+			iClass = rand() % 9 + 1;
+		}
+
+		char cmd[64];
+		sprintf_s(cmd, "disguise %d -1", iClass); // Use opposite team (-1)
+		I::EngineClient->ClientCmd_Unrestricted(cmd);
+		
+		char debugMsg[128];
+		sprintf_s(debugMsg, "echo \"Auto Disguise: Disguising as random class %d\"", iClass);
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	}
+	else
+	{
+		// Disguise as the victim's class using opposite team (-1)
+		char cmd[64];
+		sprintf_s(cmd, "disguise %d -1", iVictimClass);
+		I::EngineClient->ClientCmd_Unrestricted(cmd);
+		
+		char debugMsg[128];
+		sprintf_s(debugMsg, "echo \"Auto Disguise: Disguising as victim's class %d\"", iVictimClass);
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	}
+}
+
+void CMisc::AutoVaccinator(CTFPlayer* pLocal, CUserCmd* pCmd)
+{
+	// Skip if feature is disabled
+	if (!Vars::Misc::Automation::AutoVaccinator.Value)
+		return;
+
+	// Static variables to maintain state across function calls
+	static bool popInProgress = false;
+	static bool switchInProgress = false;
+	static int targetResistType = -1;
+	static int switchAttempts = 0;
+	static bool wasPressingReload = false;
+	static bool wasPressingAttack2 = false;
+	static Timer buttonCycleTimer = {};
+	static Timer buttonPressTimer = {};
+
+	// Debug output - much less frequent to avoid spam
+	static Timer statusTimer = {};
+	static Timer debugTimer = {};
+	
+	// Only log status every 20 seconds
+	bool shouldLogStatus = statusTimer.Run(20.0f);
+	if (shouldLogStatus)
+	{
+		I::EngineClient->ClientCmd_Unrestricted("echo \"Auto Vaccinator active and monitoring threats\"");
+	}
+
+	// Check if player is alive and is a Medic
+	if (!pLocal || !pLocal->IsAlive() || pLocal->m_iClass() != 5) // 5 = Medic
+	{
+		return;
+	}
+
+	// Get the active weapon - add null check before dereferencing
+	CTFWeaponBase* pWeapon = nullptr;
+	CBaseEntity* activeWeaponEntity = pLocal->m_hActiveWeapon().Get();
+	if (activeWeaponEntity)
+	{
+		pWeapon = activeWeaponEntity->As<CTFWeaponBase>();
+	}
+	
+	if (!pWeapon)
+	{
+		return;
+	}
+
+	// Check if the weapon is a Vaccinator (item definition index: Medic_s_TheVaccinator = 998)
+	// Make sure it's a medigun AND it's the vaccinator
+	if (pWeapon->GetWeaponID() != TF_WEAPON_MEDIGUN || pWeapon->m_iItemDefinitionIndex() != 998)
+	{
+		return;
+	}
+
+	// Cast to CWeaponMedigun for medigun-specific properties
+	auto pMedigun = pWeapon->As<CWeaponMedigun>();
+	if (!pMedigun)
+	{
+		return;
+	}
+
+	// Check if medigun is healing someone - add null check before dereferencing
+	CBaseEntity* targetEntity = pMedigun->m_hHealingTarget().Get();
+	bool isHealing = false;
+	if (targetEntity)
+	{
+		CTFPlayer* healTarget = targetEntity->As<CTFPlayer>();
+		isHealing = healTarget && healTarget->IsAlive();
+	}
+
+	// Get current resistance type (0 = bullet, 1 = blast, 2 = fire)
+	int iCurrentResistType = pMedigun->m_nChargeResistType();
+
+    // Check if we have a charge ready - important for uber popping
+	bool bChargeReady = pMedigun->m_bChargeRelease();
+
+	// NEW: Check for scoped snipers aiming at us - highest priority defense
+	bool bSniperThreat = false;
+	bool bHeadshot = false;
+	float flClosestSniperDistance = 9999.0f;
+	Vec3 vSniperPosition;
+	
+	// Get local player head position for aim checks
+	Vec3 vLocalHead = pLocal->GetEyePosition();
+	
+	// Get healing target head position if applicable
+	Vec3 vTargetHead;
+	CTFPlayer* pHealTarget = nullptr;
+	
+	if (isHealing && targetEntity)
+	{
+		pHealTarget = targetEntity->As<CTFPlayer>();
+		if (pHealTarget && pHealTarget->IsAlive())
+		{
+			vTargetHead = pHealTarget->GetEyePosition();
+		}
+	}
+	
+	// Scan enemies specifically for scoped snipers
+	for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+	{
+		auto pPlayer = pEntity->As<CTFPlayer>();
+		if (!pPlayer || !pPlayer->IsAlive() || pPlayer->IsAGhost() || 
+		   (pPlayer->IsDormant() && !H::Entities.GetDormancy(pPlayer->entindex())))
+			continue;
+		
+		// Only interested in Snipers (TF_CLASS_SNIPER = 2)
+		if (pPlayer->m_iClass() != 2)
+			continue;
+		
+		// Check if sniper is zoomed in - TF_COND_ZOOMED = 13
+		if (!pPlayer->InCond(TF_COND_ZOOMED))
+			continue;
+		
+		// Calculate distance
+		float flDistance = pLocal->m_vecOrigin().DistTo(pPlayer->m_vecOrigin());
+		if (flDistance > 3000.0f) // Only care about snipers in reasonable range
+			continue;
+		
+		// Get sniper's eye position and view angles
+		Vec3 vSniperEye = pPlayer->GetEyePosition();
+		Vec3 vSniperAngle = pPlayer->GetEyeAngles(); // Changed m_angEyeAngles to GetEyeAngles
+		
+		// Convert angle to forward vector
+		Vec3 vSniperForward;
+		Math::AngleVectors(vSniperAngle, &vSniperForward);
+		
+		// Check if aiming at local player
+		Vec3 vDirToLocal = vLocalHead - vSniperEye;
+		vDirToLocal.Normalize();
+		float flDotLocal = vDirToLocal.Dot(vSniperForward);
+		
+		// High value means sniper is looking directly at us (0.98+ is very accurate aim)
+		bool bAimingAtLocal = flDotLocal > 0.95f;
+		
+		// Check if they're aiming at head level (higher risk of headshot)
+		float flLocalHeightDiff = fabs(vSniperAngle.x - Math::CalcAngle(vSniperEye, vLocalHead).x);
+		bool bHeadshotLocal = flLocalHeightDiff < 2.0f;
+		
+		// Check if aiming at heal target
+		bool bAimingAtTarget = false;
+		bool bHeadshotTarget = false;
+		
+		if (pHealTarget)
+		{
+			Vec3 vDirToTarget = vTargetHead - vSniperEye;
+			vDirToTarget.Normalize();
+			float flDotTarget = vDirToTarget.Dot(vSniperForward);
+			bAimingAtTarget = flDotTarget > 0.95f;
+			
+			// Check if they're aiming at heal target's head level
+			float flTargetHeightDiff = fabs(vSniperAngle.x - Math::CalcAngle(vSniperEye, vTargetHead).x);
+			bHeadshotTarget = flTargetHeightDiff < 2.0f;
+		}
+		
+		// If sniper is aiming at either local player or heal target
+		if (bAimingAtLocal || bAimingAtTarget)
+		{
+			bSniperThreat = true;
+			
+			// Prioritize headshot threats
+			if ((bAimingAtLocal && bHeadshotLocal) || (bAimingAtTarget && bHeadshotTarget))
+			{
+				bHeadshot = true;
+			}
+			
+			// Track closest threatening sniper
+			if (flDistance < flClosestSniperDistance)
+			{
+				flClosestSniperDistance = flDistance;
+				vSniperPosition = pPlayer->m_vecOrigin();
+			}
+		}
+	}
+	
+	// Immediate action if sniper is aiming at us or our heal target
+	if (bSniperThreat && !popInProgress && !switchInProgress)
+	{
+		char sniperMsg[128];
+		sprintf_s(sniperMsg, "echo \"Vacc: SNIPER THREAT DETECTED! Headshot=%s Distance=%.0f\"", 
+			bHeadshot ? "YES" : "no", flClosestSniperDistance);
+		I::EngineClient->ClientCmd_Unrestricted(sniperMsg);
+		
+		// If we're not already on bullet resistance, switch immediately
+		if (iCurrentResistType != 0) // 0 = bullet
+		{
+			targetResistType = 0; // Bullet resistance
+			switchInProgress = true;
+			buttonCycleTimer.Update();
+			buttonPressTimer.Update();
+			switchAttempts = 0;
+			wasPressingReload = (pCmd->buttons & IN_RELOAD);
+			
+			I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: EMERGENCY SWITCH to bullet resistance!\"");
+		}
+		// If we're already on bullet resistance and charge is ready, pop uber immediately
+		else if (bChargeReady)
+		{
+			popInProgress = true;
+			buttonCycleTimer.Update();
+			wasPressingAttack2 = (pCmd->buttons & IN_ATTACK2);
+			
+			// Use more urgent message for headshot threats
+			if (bHeadshot)
+				I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: EMERGENCY POP for HEADSHOT threat!\"");
+			else
+				I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: EMERGENCY POP for sniper threat!\"");
+		}
+	}
+	
+	// NEW: Check for burning condition on self or healing target - emergency fire resistance
+	bool isBurning = pLocal->InCond(TF_COND_BURNING) || pLocal->InCond(TF_COND_BURNING_PYRO);
+	bool isTargetBurning = false;
+	
+	if (isHealing && targetEntity)
+	{
+		CTFPlayer* healTarget = targetEntity->As<CTFPlayer>();
+		if (healTarget)
+		{
+			isTargetBurning = healTarget->InCond(TF_COND_BURNING) || healTarget->InCond(TF_COND_BURNING_PYRO);
+		}
+	}
+	
+	// Immediate action for burning - this takes precedence over other threats
+	if ((isBurning || isTargetBurning) && !popInProgress && !switchInProgress)
+	{
+		// Log the burning condition
+		if (debugTimer.Run(0.5f))
+		{
+			char burnMsg[128];
+			sprintf_s(burnMsg, "echo \"Vacc EMERGENCY: %s burning - switching to fire resistance!\"", 
+				isBurning ? (isTargetBurning ? "Both players are" : "Medic is") : "Target is");
+			I::EngineClient->ClientCmd_Unrestricted(burnMsg);
+		}
+		
+		// If we're not on fire resistance already, switch to it immediately
+		if (iCurrentResistType != 2)
+		{
+			targetResistType = 2; // Fire resistance
+			switchInProgress = true;
+			buttonCycleTimer.Update();
+			buttonPressTimer.Update();
+			switchAttempts = 0;
+			wasPressingReload = (pCmd->buttons & IN_RELOAD);
+			
+			I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: EMERGENCY SWITCH to fire resistance!\"");
+		}
+		// If we have charge ready and are on fire resistance, pop uber immediately
+		else if (bChargeReady)
+		{
+			popInProgress = true;
+			buttonCycleTimer.Update();
+			wasPressingAttack2 = (pCmd->buttons & IN_ATTACK2);
+			
+			I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: EMERGENCY POP for burning players!\"");
+		}
+	}
+
+	// Only log significant state changes (not every tick)
+	static int lastResistType = -1;
+	static bool wasHealing = false;
+	static Timer resistanceChangeTimer = {};
+	
+	if ((lastResistType != iCurrentResistType || wasHealing != isHealing) && debugTimer.Run(1.0f))
+	{
+		if (lastResistType != iCurrentResistType) 
+		{
+			// Track when resistance actually changes
+			resistanceChangeTimer.Update();
+		}
+		
+		char debugMsg[128];
+		sprintf_s(debugMsg, "echo \"Vaccinator: Resistance=%s, Healing=%s\"", 
+			iCurrentResistType == 0 ? "Bullet" : (iCurrentResistType == 1 ? "Blast" : "Fire"),
+			isHealing ? "Yes" : "No");
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+		
+		lastResistType = iCurrentResistType;
+		wasHealing = isHealing;
+	}
+
+	// Find nearby threats
+	enum ThreatLevel {
+		THREAT_NONE = 0,
+		THREAT_NORMAL = 1,
+		THREAT_MINICRITS = 2,
+		THREAT_CRITS = 3
+	};
+
+	struct ThreatInfo {
+		ThreatLevel level;
+		int damageType; // 0 = bullet, 1 = blast, 2 = fire
+		float distance;
+		Vec3 position;
+		int playerClass; // Store player class for better debugging
+	};
+
+	std::vector<ThreatInfo> threats;
+	
+	// Scan for enemies - more condensed code to reduce excessive debug info
+	for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+	{
+		if (!pEntity)
+			continue;
+		
+		auto pPlayer = pEntity->As<CTFPlayer>();
+		if (!pPlayer || !pPlayer->IsAlive() || pPlayer->IsAGhost() || 
+		   (pPlayer->IsDormant() && !H::Entities.GetDormancy(pPlayer->entindex())))
+			continue;
+
+		// Calculate distance
+		float flDistance = pLocal->m_vecOrigin().DistTo(pPlayer->m_vecOrigin());
+		
+		// Skip players too far away (beyond reasonable threat range)
+		if (flDistance > 1000.0f)
+			continue;
+
+		// Get weapon - handle dormant players
+		CTFWeaponBase* pEnemyTFWeapon = nullptr;
+		int weaponID = 0;
+		
+		if (!pPlayer->IsDormant())
+		{
+			CBaseEntity* pEnemyWeaponEntity = pPlayer->m_hActiveWeapon().Get();
+			if (pEnemyWeaponEntity)
+			{
+				pEnemyTFWeapon = pEnemyWeaponEntity->As<CTFWeaponBase>();
+				if (pEnemyTFWeapon)
+				{
+					weaponID = pEnemyTFWeapon->GetWeaponID();
+				}
+			}
+		}
+
+		// Determine threat level and damage type
+		ThreatLevel level = THREAT_NORMAL;
+		int damageType = 0; // Default to bullets
+
+		// Check for crits
+		if (pPlayer->InCond(TF_COND_CRITBOOSTED) || 
+			pPlayer->InCond(TF_COND_CRITBOOSTED_DEMO_CHARGE) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_PUMPKIN) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_FIRST_BLOOD) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_BONUS_TIME) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_CTF_CAPTURE) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_ON_KILL) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_CARD_EFFECT) ||
+			pPlayer->InCond(TF_COND_CRITBOOSTED_RUNE_TEMP))
+		{
+			level = THREAT_CRITS;
+		}
+		// Check for mini-crits
+		else if (pPlayer->InCond(TF_COND_OFFENSEBUFF) ||
+				pPlayer->InCond(TF_COND_MINICRITBOOSTED_ON_KILL))
+		{
+			level = THREAT_MINICRITS;
+		}
+
+		// If we know the class, use that for initial damage type guess
+		switch (pPlayer->m_iClass())
+		{
+			case TF_CLASS_SOLDIER:
+			case TF_CLASS_DEMOMAN:
+				damageType = 1; // Explosive by default
+				break;
+			case TF_CLASS_PYRO:
+				damageType = 2; // Fire by default
+				break;
+			default:
+				damageType = 0; // Bullet by default
+		}
+		
+		// If we have the weapon, get more specific damage type
+		if (pEnemyTFWeapon)
+		{
+		// Explosive weapons
+		if (weaponID == TF_WEAPON_ROCKETLAUNCHER || 
+			weaponID == TF_WEAPON_GRENADELAUNCHER ||
+			weaponID == TF_WEAPON_PIPEBOMBLAUNCHER ||
+			weaponID == TF_WEAPON_STICKBOMB ||
+				weaponID == TF_WEAPON_PARTICLE_CANNON ||
+				weaponID == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT)
+		{
+			damageType = 1; // Explosive
+		}
+		// Fire weapons
+			else if (weaponID == TF_WEAPON_FLAMETHROWER)
+		{
+			damageType = 2; // Fire
+		}
+		}
+		
+		// Always consider burning players as fire threats
+		if (pPlayer->InCond(TF_COND_BURNING) || pPlayer->InCond(TF_COND_BURNING_PYRO))
+		{
+			damageType = 2; // Fire
+		}
+		
+		// Add to threats list
+		threats.push_back({level, damageType, flDistance, pPlayer->m_vecOrigin(), pPlayer->m_iClass()});
+	}
+
+	// Count enemies by type for debug and analysis
+	int bulletEnemies = 0, blastEnemies = 0, fireEnemies = 0;
+	for (const auto& threat : threats)
+	{
+		if (threat.damageType == 0) bulletEnemies++;
+		else if (threat.damageType == 1) blastEnemies++;
+		else if (threat.damageType == 2) fireEnemies++;
+	}
+	
+	// Log enemy count info without spamming
+	static Timer enemyCountTimer = {};
+	if (enemyCountTimer.Run(5.0f))
+	{
+		char debugMsg[128];
+		sprintf_s(debugMsg, "echo \"Vacc Status: Detected %d enemies - Bullet:%d, Blast:%d, Fire:%d\"", 
+			bulletEnemies + blastEnemies + fireEnemies, bulletEnemies, blastEnemies, fireEnemies);
+		I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+	}
+
+	// Process threats
+	ThreatInfo highestThreat = {THREAT_NONE, 0, 0.0f, Vec3(), 0};
+	
+	// Find the highest threat
+	for (const auto& threat : threats)
+	{
+		if (threat.level > highestThreat.level || 
+			(threat.level == highestThreat.level && threat.distance < highestThreat.distance))
+		{
+			highestThreat = threat;
+		}
+	}
+	
+	// Static variables for human-like reaction
+	static Timer reactionTimer = {};
+	static bool reacting = false;
+	static ThreatInfo currentReactionThreat = {THREAT_NONE, 0, 0.0f, Vec3(), 0};
+	
+	// If we have a significant threat (mini-crits or higher)
+	if (highestThreat.level >= THREAT_MINICRITS)
+	{
+		// Debug output for threat detection only when significant changes happen
+		if (currentReactionThreat.level != highestThreat.level || 
+		    currentReactionThreat.damageType != highestThreat.damageType)
+		{
+			char debugMsg[128];
+			const char* threatType = highestThreat.damageType == 0 ? "Bullet" : 
+									(highestThreat.damageType == 1 ? "Blast" : "Fire");
+			sprintf_s(debugMsg, "echo \"Threat detected: %s (%s), Level=%d, Dist=%.0f\"", 
+				SDK::GetClassByIndex(highestThreat.playerClass),
+				threatType,
+				highestThreat.level, 
+				highestThreat.distance);
+			I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+		}
+	
+		// If we're not already reacting to a threat, start reaction timer
+		if (!reacting)
+		{
+			currentReactionThreat = highestThreat;
+			reacting = true;
+			reactionTimer.Update();
+		}
+		
+		// Check if the current threat is different and more severe
+		if (highestThreat.level > currentReactionThreat.level)
+		{
+			currentReactionThreat = highestThreat;
+			reactionTimer.Update();
+		}
+		
+		// Human reaction time (between 150-350ms for most people)
+		float reactionTime = 0.05f; // Reduced from 0.2f for faster reactions
+		
+		// Increase reaction time slightly for minicrits (less urgent)
+		if (highestThreat.level == THREAT_MINICRITS)
+			reactionTime = 0.1f; // Reduced from 0.3f
+			
+		// If reaction time has passed
+		if (reactionTimer.Check(reactionTime))
+		{
+			// Pop uber if the resistance type matches the threat
+			// Or if it's critical threat, pop regardless
+			if ((iCurrentResistType == currentReactionThreat.damageType || currentReactionThreat.level == THREAT_CRITS) 
+			    && bChargeReady && !popInProgress && !switchInProgress)
+			{
+				// Start popping process
+				popInProgress = true;
+				buttonCycleTimer.Update();
+				wasPressingAttack2 = (pCmd->buttons & IN_ATTACK2); // Store current button state
+				
+				char popMsg[128];
+				sprintf_s(popMsg, "echo \"POPPING UBER for %s threat! (Charge: %s, Type: %d)\"", 
+					currentReactionThreat.level == THREAT_CRITS ? "CRITICAL" : "high",
+					bChargeReady ? "READY" : "not ready", 
+					iCurrentResistType);
+				I::EngineClient->ClientCmd_Unrestricted(popMsg);
+			}
+			// Otherwise, if threat is high enough, switch resistance type
+			else if (currentReactionThreat.level >= THREAT_MINICRITS && iCurrentResistType != currentReactionThreat.damageType 
+			         && !popInProgress && !switchInProgress)
+			{
+				// Start resistance switching process
+				targetResistType = currentReactionThreat.damageType;
+				switchInProgress = true;
+				buttonCycleTimer.Update();
+				buttonPressTimer.Update();
+				switchAttempts = 0;
+				wasPressingReload = (pCmd->buttons & IN_RELOAD); // Store current button state
+				
+				const char* currentType = iCurrentResistType == 0 ? "Bullet" : (iCurrentResistType == 1 ? "Blast" : "Fire");
+				const char* targetType = targetResistType == 0 ? "Bullet" : (targetResistType == 1 ? "Blast" : "Fire");
+				
+					char debugMsg[128];
+				sprintf_s(debugMsg, "echo \"Cycling resistance: %s → %s for threat level %d\"", 
+					currentType, targetType, currentReactionThreat.level);
+					I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+			}
+			
+			reacting = false;
+		}
+	}
+	else
+	{
+		// No current threat, reset reaction state
+		if (reacting)
+		{
+			reacting = false;
+		}
+		
+		// When no immediate threats, still analyze nearby enemies and switch to most appropriate resistance
+		// This fixes the issue where it stays on the first resistance type
+		static Timer cycleTimer = {};
+
+		// More frequent cycling when not healing (but don't spam)
+		if (!isHealing && !switchInProgress && !popInProgress && cycleTimer.Run(1.5f)) // Reduced from 3.0f
+		{
+			// --- RESTORED OLD THREAT SYSTEM ---
+			// Calculate threat scores for each resistance type
+			float threatScores[3] = {0.0f, 0.0f, 0.0f}; // bullet, blast, fire
+			float threatDistances[3] = {9999.0f, 9999.0f, 9999.0f};
+			
+			// Scan for nearby enemies to determine best resistance
+			for (auto pEntity : H::Entities.GetGroup(EGroupType::PLAYERS_ENEMIES))
+			{
+				auto pPlayer = pEntity->As<CTFPlayer>();
+				if (!pPlayer || !pPlayer->IsAlive() || pPlayer->IsAGhost())
+					continue;
+					
+				// Skip dormant players unless we have dormant ESP enabled
+				if (pPlayer->IsDormant() && !H::Entities.GetDormancy(pPlayer->entindex()))
+					continue;
+
+				// Calculate distance
+				float flDistance = pLocal->m_vecOrigin().DistTo(pPlayer->m_vecOrigin());
+				
+				// Skip players too far away
+				const float flMaxRange = 1200.0f; // Slightly higher than typical combat range
+				if (flDistance > flMaxRange)
+					continue;
+					
+				// Get player's active weapon
+				CTFWeaponBase* pEnemyWeapon = nullptr;
+				if (!pPlayer->IsDormant())
+				{
+					auto pWeaponEnt = pPlayer->m_hActiveWeapon().Get();
+					if (pWeaponEnt)
+						pEnemyWeapon = pWeaponEnt->As<CTFWeaponBase>();
+				}
+
+				// Determine threat type based on player class and weapon
+				int primaryThreatType = 0; // Default to bullets
+				float threatWeight = 1.0f; // Base threat weight
+				
+				// Class-based threat detection if weapon isn't available
+				switch (pPlayer->m_iClass())
+				{
+					case TF_CLASS_DEMOMAN:
+						primaryThreatType = 1; // Explosives
+						break;
+					case TF_CLASS_SOLDIER:
+						primaryThreatType = 1; // Explosives
+						break;
+					case TF_CLASS_PYRO:
+						primaryThreatType = 2; // Fire
+						break;
+					// All other classes default to bullet damage
+				}
+				
+				// If we have weapon info, use that for more accurate detection
+				if (pEnemyWeapon)
+				{
+					int weaponID = pEnemyWeapon->GetWeaponID();
+					
+					// Explosive weapons
+					if (weaponID == TF_WEAPON_ROCKETLAUNCHER || 
+						weaponID == TF_WEAPON_GRENADELAUNCHER ||
+						weaponID == TF_WEAPON_PIPEBOMBLAUNCHER ||
+						weaponID == TF_WEAPON_STICKBOMB ||
+						weaponID == TF_WEAPON_PARTICLE_CANNON ||
+						weaponID == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT)
+					{
+						primaryThreatType = 1; // Explosive
+						
+						// Special case for sticky bombs - higher priority if stickies are out
+						if (weaponID == TF_WEAPON_PIPEBOMBLAUNCHER || weaponID == TF_WEAPON_STICKBOMB)
+						{
+							// Check if player has stickies deployed
+							for (auto proj : H::Entities.GetGroup(EGroupType::WORLD_PROJECTILES))
+							{
+								if (proj->GetClassID() == ETFClassID::CTFGrenadePipebombProjectile)
+								{
+									auto pipebomb = proj->As<CTFGrenadePipebombProjectile>();
+									if (pipebomb && pipebomb->m_hThrower().Get() == pPlayer && 
+										pipebomb->m_iType() == TF_GL_MODE_REMOTE_DETONATE)
+									{
+										threatWeight = 1.5f; // Higher weight for active stickies
+										break;
+									}
+								}
+							}
+						}
+					}
+					// Fire weapons
+					else if (weaponID == TF_WEAPON_FLAMETHROWER)
+					{
+						primaryThreatType = 2; // Fire
+						
+						// If pyro is very close, higher fire threat
+						if (flDistance < 400.0f)
+							threatWeight = 2.0f;
+					}
+				}
+				
+				// Always consider fire condition as fire threat
+				if (pPlayer->InCond(TF_COND_BURNING) || pPlayer->InCond(TF_COND_BURNING_PYRO))
+				{
+					primaryThreatType = 2; // Fire
+				}
+				
+				// Check if player has crits/minicrits - increase weight accordingly
+				if (pPlayer->InCond(TF_COND_CRITBOOSTED) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_DEMO_CHARGE) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_PUMPKIN) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_FIRST_BLOOD) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_BONUS_TIME) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_CTF_CAPTURE) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_ON_KILL) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_CARD_EFFECT) ||
+					pPlayer->InCond(TF_COND_CRITBOOSTED_RUNE_TEMP))
+				{
+					threatWeight *= 2.0f; // Double threat if crit boosted
+				}
+				else if (pPlayer->InCond(TF_COND_OFFENSEBUFF) || 
+						pPlayer->InCond(TF_COND_MINICRITBOOSTED_ON_KILL))
+				{
+					threatWeight *= 1.5f; // 1.5x threat if mini-crit boosted
+				}
+				
+				// Distance-based weighting (closer enemies are more threatening)
+				float distanceFactor = 1.0f - (flDistance / flMaxRange);
+				distanceFactor = std::max(0.1f, distanceFactor); // At least 0.1 weight
+				
+				// Final threat calculation
+				float threatScore = threatWeight * distanceFactor;
+				
+				// Update threat type scores and distances
+				threatScores[primaryThreatType] += threatScore;
+				threatDistances[primaryThreatType] = std::min(threatDistances[primaryThreatType], flDistance);
+			}
+			
+			// Additional check for projectiles in the world that might pose a threat
+			for (auto pProjectile : H::Entities.GetGroup(EGroupType::WORLD_PROJECTILES))
+			{
+				if (!pProjectile)
+					continue;
+					
+				float flDistance = pLocal->m_vecOrigin().DistTo(pProjectile->m_vecOrigin());
+				if (flDistance > 600.0f) // Only care about closer projectiles
+					continue;
+					
+				int projectileType = 0; // Default to bullet
+				
+				// Check projectile types
+				switch (pProjectile->GetClassID())
+				{
+					case ETFClassID::CTFGrenadePipebombProjectile:
+					case ETFClassID::CTFProjectile_Rocket:
+					case ETFClassID::CTFProjectile_SentryRocket:
+						projectileType = 1; // Explosive
+						// Add to threat score for explosives (nearby projectiles are dangerous)
+						threatScores[projectileType] += (1.0f - (flDistance / 600.0f)) * 2.0f;
+						threatDistances[projectileType] = std::min(threatDistances[projectileType], flDistance);
+						break;
+						
+					case ETFClassID::CTFProjectile_Flare:
+						projectileType = 2; // Fire
+						// Add to threat score for fire
+						threatScores[projectileType] += (1.0f - (flDistance / 600.0f)) * 1.5f;
+						threatDistances[projectileType] = std::min(threatDistances[projectileType], flDistance);
+						break;
+				}
+			}
+			
+			// Determine the best resistance type based on threat scores
+			float highestScore = 0.0f;
+			targetResistType = -1; // -1 means no change needed
+			
+			// First check if we have threats at all
+			bool hasThreats = false;
+			for (int i = 0; i < 3; i++)
+			{
+				if (threatScores[i] > 0.0f)
+				{
+					hasThreats = true;
+					if (threatScores[i] > highestScore)
+					{
+						highestScore = threatScores[i];
+						targetResistType = i;
+					}
+				}
+			}
+			
+			// If no threats detected, cycle to next resistance (but only when not healing)
+			if (!hasThreats && !isHealing)
+			{
+				targetResistType = (iCurrentResistType + 1) % 3;
+			}
+			
+			// Only switch if we need to and we're not already at this resistance type
+			if (targetResistType >= 0 && targetResistType != iCurrentResistType)
+			{
+				// Start a resistance switch
+				switchInProgress = true;
+			buttonCycleTimer.Update();
+				buttonPressTimer.Update();
+				switchAttempts = 0;
+				wasPressingReload = (pCmd->buttons & IN_RELOAD); // Store current button state
+				
+				// Only log changes to avoid spam
+				const char* currentType = iCurrentResistType == 0 ? "Bullet" : (iCurrentResistType == 1 ? "Blast" : "Fire");
+				const char* targetType = targetResistType == 0 ? "Bullet" : (targetResistType == 1 ? "Blast" : "Fire");
+				
+				char debugMsg[128];
+				if (hasThreats)
+				{
+					sprintf_s(debugMsg, "echo \"Auto-cycling to %s (Scores: B:%.1f E:%.1f F:%.1f)\"", 
+						targetType, threatScores[0], threatScores[1], threatScores[2]);
+				}
+				else
+				{
+					sprintf_s(debugMsg, "echo \"Cycling resistance: %s → %s (no threats)\"", 
+						currentType, targetType);
+				}
+				I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+			}
+		}
+	}
+
+	// --------- IMPROVED BUTTON PRESSING LOGIC ---------
+	// Handle button press/release cycles with better verification
+	if (switchInProgress)
+	{
+		// Check if resistance has changed since we started switching
+		// If the resistance has changed and it matches our target, we're done
+		if (targetResistType == iCurrentResistType)
+		{
+			switchInProgress = false;
+			I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: Resistance switch successful!\"");
+		}
+		// If we've been trying to switch for too long, press the button multiple times
+		else if (buttonPressTimer.Check(0.2f)) // Reduced from 0.5f
+		{
+			// We need to cycle 1 or 2 times to reach the target resistance from current
+			int numPresses = (targetResistType - iCurrentResistType + 3) % 3;
+			
+			// Actually press the button the calculated number of times
+			const int maxAttempts = 4; // Prevent infinite loops
+			
+			if (switchAttempts < maxAttempts)
+			{
+				// Press the reload button
+				pCmd->buttons |= IN_RELOAD;
+				
+				// This is a distinct cycle
+				switchAttempts++;
+				
+				// Only log this to reduce spam
+				if (switchAttempts == 1 || switchAttempts == maxAttempts)
+				{
+					char debugMsg[128];
+					sprintf_s(debugMsg, "echo \"Vacc: Pressing reload (attempt %d/%d) - need %d presses to go from %d to %d\"",
+						switchAttempts, maxAttempts, numPresses, iCurrentResistType, targetResistType);
+					I::EngineClient->ClientCmd_Unrestricted(debugMsg);
+				}
+				
+				// Update the timer for next check
+				buttonPressTimer.Update();
+			}
+			else
+			{
+				// We've tried enough times, give up
+				switchInProgress = false;
+				I::EngineClient->ClientCmd_Unrestricted("echo \"Vacc: Giving up on resistance switch after multiple attempts\"");
+			}
+		}
+		else
+		{
+			// Release the button between presses (important for the game to register multiple presses)
+			pCmd->buttons &= ~IN_RELOAD;
+		}
+	}
+	
+	if (popInProgress)
+	{
+		// First phase - press button for uber pop
+		if (buttonCycleTimer.Check(0.0f))
+		{
+			// Force press M2 button - very important to set it directly
+			pCmd->buttons |= IN_ATTACK2;
+			
+			// Log that we're pressing the button
+			I::EngineClient->ClientCmd_Unrestricted("echo \"UBER POP: Pressing M2 button!\"");
+			
+			// Update timer for next phase
+			buttonCycleTimer.Update();
+		}
+		// Second phase - release button
+		else if (buttonCycleTimer.Check(0.05f)) // Faster release for more responsive popping
+		{
+			// Release the button
+			pCmd->buttons &= ~IN_ATTACK2;
+			I::EngineClient->ClientCmd_Unrestricted("echo \"UBER POP: Releasing M2 button\"");
+			
+			// End the pop sequence
+			popInProgress = false;
+		}
+	}
+	
+	// Update tracking vars with current state if not in a cycle
+	if (!popInProgress)
+		wasPressingAttack2 = (pCmd->buttons & IN_ATTACK2);
 }

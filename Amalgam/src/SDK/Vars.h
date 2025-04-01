@@ -703,6 +703,8 @@ namespace Vars
 			CVar(AcceptItemDrops, false)
 			CVar(AutoF2Ignored, false)
 			CVar(AutoF1Priority, false)
+			CVar(AutoDisguiseOnBackstab, false)
+			CVar(AutoVaccinator, false)
 		SUBNAMESPACE_END(Automation)
 
 		SUBNAMESPACE_BEGIN(Sound)
