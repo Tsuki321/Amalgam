@@ -38,5 +38,5 @@
 [VAC bypass](https://github.com/danielkrupinski/VAC-Bypass-Loader) and [Xenos](https://github.com/DarthTon/Xenos/releases) recommended
 
 Changelogs:
-Auto Disguise: Added - Basically disguises you as the one you backstabs, it only does so if the class is not heavy, demoman, or soldier, if the one you backstab is of thsoe 3 classes, it would instead disguise as the nearest enemy player.
-Auto Vaccinator: WIP but Functional - Just like the one in SEOwneDE except much more complex, mostly functional but the triggering of pops is not working that much, just look at the code in misc.cpp if yall want to take a look.
+# Auto Disguise: Added - Basically disguises you as the one you backstabs, it only does so if the class is not heavy, demoman, or soldier, if the one you backstab is of thsoe 3 classes, it would instead disguise as the nearest enemy player.
+# Auto Vaccinator: WIP but Functional - Just like the one in SEOwneDE except much more complex, mostly functional but the triggering of pops is not working that much, just look at the code in misc.cpp if yall want to take a look.
