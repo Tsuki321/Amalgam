@@ -48,6 +48,31 @@ std::vector<Target_t> CAimbotProjectile::GetTargets(CTFPlayer* pLocal, CTFWeapon
 				if (pEntity->As<CTFPlayer>()->m_iHealth() >= pEntity->As<CTFPlayer>()->GetMaxHealth()
 					|| Vars::Aimbot::Healing::FriendsOnly.Value && !H::Entities.IsFriend(pEntity->entindex()) && !H::Entities.InParty(pEntity->entindex()))
 					continue;
+				
+				// Special priority logic for Crusader's Crossbow
+				if (pWeapon->GetWeaponID() == TF_WEAPON_CROSSBOW)
+				{
+					// First, calculate the position and angle values
+					float flFOVTo; Vec3 vPos, vAngleTo;
+					if (!F::AimbotGlobal.PlayerBoneInFOV(pEntity->As<CTFPlayer>(), vLocalPos, vLocalAngles, flFOVTo, vPos, vAngleTo))
+						continue;
+					
+					float flDistTo = iSort == Vars::Aimbot::General::TargetSelectionEnum::Distance ? vLocalPos.DistTo(vPos) : 0.f;
+					
+					CTFPlayer* pTeammate = pEntity->As<CTFPlayer>();
+					// Calculate priority based on how injured the teammate is
+					// Lower health percentage = higher priority
+					// 100 is added to ensure teammates always have higher priority than enemies
+					float healthPercentage = (float)pTeammate->m_iHealth() / (float)pTeammate->GetMaxHealth();
+					int teammatePriority = 100 + (int)((1.0f - healthPercentage) * 100.0f);
+					
+					// Friends/party members get additional priority boost
+					if (H::Entities.IsFriend(pEntity->entindex()) || H::Entities.InParty(pEntity->entindex()))
+						teammatePriority += 50;
+					
+					vTargets.emplace_back(pEntity, TargetEnum::Player, vPos, vAngleTo, flFOVTo, flDistTo, teammatePriority);
+					continue;
+				}
 			}
 
 			float flFOVTo; Vec3 vPos, vAngleTo;

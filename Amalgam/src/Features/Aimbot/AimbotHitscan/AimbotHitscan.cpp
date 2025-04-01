@@ -41,6 +41,25 @@ std::vector<Target_t> CAimbotHitscan::GetTargets(CTFPlayer* pLocal, CTFWeaponBas
 					if (pEntity->As<CTFPlayer>()->InCond(TF_COND_STEALTHED)
 						|| Vars::Aimbot::Healing::FriendsOnly.Value && !H::Entities.IsFriend(pEntity->entindex()) && !H::Entities.InParty(pEntity->entindex()))
 						continue;
+					
+					CTFPlayer* pTeammate = pEntity->As<CTFPlayer>();
+					float healthPercentage = (float)pTeammate->m_iHealth() / (float)pTeammate->GetMaxHealth();
+					
+					int healthPriority = (int)((1.0f - healthPercentage) * 100.0f);
+					
+					if (H::Entities.IsFriend(pEntity->entindex()) || H::Entities.InParty(pEntity->entindex()))
+						healthPriority += 20;
+						
+					if (pTeammate->m_flLastDamageTime() > I::GlobalVars->curtime - 5.0f)
+						healthPriority += 15;
+
+					float flFOVTo; Vec3 vPos, vAngleTo;
+					if (!F::AimbotGlobal.PlayerBoneInFOV(pEntity->As<CTFPlayer>(), vLocalPos, vLocalAngles, flFOVTo, vPos, vAngleTo, Vars::Aimbot::Hitscan::Hitboxes.Value))
+						continue;
+
+					float flDistTo = iSort == Vars::Aimbot::General::TargetSelectionEnum::Distance ? vLocalPos.DistTo(vPos) : 0.f;
+					vTargets.emplace_back(pEntity, TargetEnum::Player, vPos, vAngleTo, flFOVTo, flDistTo, healthPriority);
+					continue;
 				}
 			}
 
@@ -719,6 +738,75 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 	case TF_WEAPON_SNIPERRIFLE_CLASSIC:
 		if (iRealAimType)
 			pCmd->buttons |= IN_ATTACK;
+	}
+
+	if (pWeapon->GetWeaponID() == TF_WEAPON_MEDIGUN)
+	{
+		static CBaseEntity* s_pLastTarget = nullptr;
+		static float s_flLastSwitchTime = 0.0f;
+		static float s_flTargetStartHealth = 0.0f;
+		
+		auto pCurrentTarget = pWeapon->As<CWeaponMedigun>()->m_hHealingTarget().Get();
+		
+		Target_t* pBestTarget = nullptr;
+		int highestPriority = -1;
+		
+		for (auto& target : vTargets)
+		{
+			if (target.m_nPriority > highestPriority)
+			{
+				highestPriority = target.m_nPriority;
+				pBestTarget = &target;
+			}
+		}
+		
+		const float MIN_SWITCH_INTERVAL = 1.0f;
+		const float EMERGENCY_PRIORITY = 70;
+		
+		bool shouldSwitch = false;
+		
+		if (pCurrentTarget && pBestTarget && pBestTarget->m_pEntity != pCurrentTarget)
+		{
+			float currentTime = I::GlobalVars->curtime;
+			
+			CTFPlayer* pCurrentPlayer = pCurrentTarget->As<CTFPlayer>();
+			float currentHealthPct = (float)pCurrentPlayer->m_iHealth() / (float)pCurrentPlayer->GetMaxHealth();
+			
+			bool currentTargetHealthy = currentHealthPct > 0.8f;
+			
+			bool emergencySwitch = (highestPriority > EMERGENCY_PRIORITY) && (currentTime - s_flLastSwitchTime > 0.3f);
+			
+			bool normalSwitch = (currentTime - s_flLastSwitchTime > MIN_SWITCH_INTERVAL);
+			
+			shouldSwitch = (currentTargetHealthy && normalSwitch) || emergencySwitch;
+			
+			if (shouldSwitch)
+			{
+				s_flLastSwitchTime = currentTime;
+				s_pLastTarget = pCurrentTarget;
+			}
+		}
+		else if (!pCurrentTarget && pBestTarget)
+		{
+			shouldSwitch = true;
+		}
+		
+		if (pBestTarget && (shouldSwitch || pBestTarget->m_pEntity == pCurrentTarget))
+		{
+			if (pCurrentTarget == pBestTarget->m_pEntity)
+			{
+				if (G::LastUserCmd->buttons & IN_ATTACK)
+					pCmd->buttons |= IN_ATTACK;
+			}
+			else
+			{
+				G::Target = { pBestTarget->m_pEntity->entindex(), I::GlobalVars->tickcount };
+				Aim(pCmd, pBestTarget->m_vAngleTo);
+				pCmd->buttons |= IN_ATTACK;
+			}
+		}
+		
+		return;
 	}
 
 	for (auto& tTarget : vTargets)
