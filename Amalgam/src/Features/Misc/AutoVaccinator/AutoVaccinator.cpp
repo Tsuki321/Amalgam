@@ -106,8 +106,18 @@ bool CAutoVaccinator::ScanForProjectiles(CTFPlayer* pLocal, medigun_resist_types
         case ETFClassID::CTFProjectile_JarMilk:
             isCritical = pEntity->As<CTFWeaponBaseGrenadeProj>()->m_bCritical();
             break;
+        case ETFClassID::CTFProjectile_Rocket:
+            isCritical = pEntity->As<CTFProjectile_Rocket>()->m_bCritical();
+            break;
+        case ETFClassID::CTFProjectile_Flare:
+            isCritical = pEntity->As<CTFProjectile_Flare>()->m_bCritical();
+            break;
+        case ETFClassID::CTFProjectile_Arrow:
+            isCritical = pEntity->As<CTFProjectile_Arrow>()->m_bCritical();
+            break;
         default:
-            isCritical = pEntity->As<CTFBaseRocket>()->m_bCritical();
+            // Assume not critical for other types
+            isCritical = false;
             break;
         }
         
@@ -127,22 +137,25 @@ bool CAutoVaccinator::ScanForProjectiles(CTFPlayer* pLocal, medigun_resist_types
             break;
         case ETFClassID::CTFFlameRocket:
         case ETFClassID::CTFProjectile_BallOfFire:
+        case ETFClassID::CTFProjectile_Flare:
         case ETFClassID::CTFProjectile_SpellFireball:
             projectileResistType = MEDIGUN_FIRE_RESIST;
             break;
         default:
-            // For any other projectile, use blast resistance as default
             projectileResistType = MEDIGUN_BLAST_RESIST;
             break;
         }
         
-        // Update the best resistance type
+        // If we prefer crit protection, check if this is a critical projectile
+        if (Vars::Misc::AutoVaccinator::PreferCrit.Value && isCritical)
+        {
+            bestResistType = projectileResistType;
+            return true;
+        }
+        
+        // Otherwise, just set the resistance type and mark that we found a threat
         bestResistType = projectileResistType;
         foundThreat = true;
-        
-        // If a critical projectile is detected and PreferCrit is enabled, prioritize it immediately
-        if (isCritical && Vars::Misc::AutoVaccinator::PreferCrit.Value)
-            return true;
     }
     
     return foundThreat;
@@ -339,8 +352,18 @@ bool CAutoVaccinator::ShouldPopcritUber(CTFPlayer* pLocal, medigun_resist_types_
         case ETFClassID::CTFProjectile_JarMilk:
             isCritical = pEntity->As<CTFWeaponBaseGrenadeProj>()->m_bCritical();
             break;
+        case ETFClassID::CTFProjectile_Rocket:
+            isCritical = pEntity->As<CTFProjectile_Rocket>()->m_bCritical();
+            break;
+        case ETFClassID::CTFProjectile_Flare:
+            isCritical = pEntity->As<CTFProjectile_Flare>()->m_bCritical();
+            break;
+        case ETFClassID::CTFProjectile_Arrow:
+            isCritical = pEntity->As<CTFProjectile_Arrow>()->m_bCritical();
+            break;
         default:
-            isCritical = pEntity->As<CTFBaseRocket>()->m_bCritical();
+            // Assume not critical for other types
+            isCritical = false;
             break;
         }
         
@@ -363,6 +386,7 @@ bool CAutoVaccinator::ShouldPopcritUber(CTFPlayer* pLocal, medigun_resist_types_
             break;
         case ETFClassID::CTFFlameRocket:
         case ETFClassID::CTFProjectile_BallOfFire:
+        case ETFClassID::CTFProjectile_Flare:
         case ETFClassID::CTFProjectile_SpellFireball:
             projectileResistType = MEDIGUN_FIRE_RESIST;
             break;
