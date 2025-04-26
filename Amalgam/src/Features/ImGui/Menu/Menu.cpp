@@ -1149,6 +1149,16 @@ void CMenu::MenuMisc(int iTab)
 				FToggle("Break jump", Vars::Misc::Movement::BreakJump, FToggle_Left);
 				FToggle("Shield turn rate", Vars::Misc::Movement::ShieldTurnRate, FToggle_Right);
 			} EndSection();
+			
+			if (Section("Auto Vaccinator"))
+			{
+				FToggle("Enabled", Vars::Misc::AutoVaccinator::Enabled, FToggle_Left);
+				FToggle("Pop uber", Vars::Misc::AutoVaccinator::PopUber, FToggle_Right);
+				FToggle("Prefer crit protection", Vars::Misc::AutoVaccinator::PreferCrit, FToggle_Left);
+				FSlider("Projectile range", Vars::Misc::AutoVaccinator::ProjectileRange, 100.f, 1000.f, 50.f, "%g", FSlider_Left | FSlider_Clamp);
+				FSlider("Player range", Vars::Misc::AutoVaccinator::PlayerRange, 100.f, 1000.f, 50.f, "%g", FSlider_Right | FSlider_Clamp);
+			} EndSection();
+
 			if (Vars::Debug::Options.Value)
 			{
 				if (Section("Debug", true))

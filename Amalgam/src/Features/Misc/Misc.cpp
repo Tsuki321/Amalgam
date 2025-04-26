@@ -4,6 +4,7 @@
 #include "../TickHandler/TickHandler.h"
 #include "../Players/PlayerUtils.h"
 #include "../Aimbot/AutoRocketJump/AutoRocketJump.h"
+#include "AutoVaccinator/AutoVaccinator.h"
 
 void CMisc::RunPre(CTFPlayer* pLocal, CUserCmd* pCmd)
 {
@@ -16,6 +17,7 @@ void CMisc::RunPre(CTFPlayer* pLocal, CUserCmd* pCmd)
 
 	AntiAFK(pLocal, pCmd);
 	InstantRespawnMVM(pLocal);
+	AutoVaccinator(pLocal, pCmd);
 
 	if (!pLocal->IsAlive() || pLocal->IsAGhost() || pLocal->m_MoveType() != MOVETYPE_WALK || pLocal->IsSwimming() || pLocal->InCond(TF_COND_SHIELD_CHARGE) || pLocal->InCond(TF_COND_HALLOWEEN_KART))
 		return;
@@ -623,4 +625,9 @@ bool CMisc::SteamRPC()
 	I::SteamFriends->SetRichPresence("steam_player_group_size", std::to_string(Vars::Misc::Steam::GroupSize.Value).c_str());
 
 	return true;
+}
+
+void CMisc::AutoVaccinator(CTFPlayer* pLocal, CUserCmd* pCmd)
+{
+	F::AutoVaccinator.Run(pLocal, pCmd);
 }

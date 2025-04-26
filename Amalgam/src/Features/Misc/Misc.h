@@ -20,6 +20,7 @@ class CMisc
 	void FastMovement(CTFPlayer* pLocal, CUserCmd* pCmd);
 
 	void EdgeJump(CTFPlayer* pLocal, CUserCmd* pCmd, bool bPost = false);
+	void AutoVaccinator(CTFPlayer* pLocal, CUserCmd* pCmd);
 
 	bool m_bPeekPlaced = false;
 	Vec3 m_vPeekReturnPos = {};
