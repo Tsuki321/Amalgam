@@ -700,6 +700,14 @@ namespace Vars
 			CVar(DominationOverride, std::string(""), VISUAL)
 			CVar(RevengeOverride, std::string(""), VISUAL)
 
+			SUBNAMESPACE_BEGIN(AutoVaccinator)
+				CVar(Enabled, false)
+				CVar(PopUber, false)
+				CVar(PreferCrit, true)
+				CVar(ProjectileRange, 500.f)
+				CVar(PlayerRange, 600.f)
+			SUBNAMESPACE_END(AutoVaccinator)
+
 			SUBNAMESPACE_BEGIN(Movement)
 				CVarEnum(AutoStrafe, 0, NONE, Off, Legit, Directional)
 				CVar(AutoStrafeTurnScale, 0.f)
@@ -717,14 +725,6 @@ namespace Vars
 				CVar(BreakJump, false)
 				CVar(ShieldTurnRate, false)
 			SUBNAMESPACE_END(Movement)
-
-			SUBNAMESPACE_BEGIN(AutoVaccinator)
-				CVar(Enabled, true)
-				CVar(PopUber, true)
-				CVar(PreferCrit, true)
-				CVar(ProjectileRange, 500.f)
-				CVar(PlayerRange, 800.f)
-			SUBNAMESPACE_END(AutoVaccinator)
 		SUBNAMESPACE_END(Misc)
 	NAMESPACE_END(Visuals)
 
@@ -766,6 +766,14 @@ namespace Vars
 	NAMESPACE_END(Radar)
 
 	NAMESPACE_BEGIN(Misc)
+		SUBNAMESPACE_BEGIN(AutoVaccinator)
+			CVar(Enabled, false)
+			CVar(PopUber, false)
+			CVar(PreferCrit, true)
+			CVar(ProjectileRange, 500.f)
+			CVar(PlayerRange, 600.f)
+		SUBNAMESPACE_END(AutoVaccinator)
+
 		SUBNAMESPACE_BEGIN(Movement)
 			CVarEnum(AutoStrafe, 0, NONE, Off, Legit, Directional)
 			CVar(AutoStrafeTurnScale, 0.5f)
