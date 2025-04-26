@@ -191,8 +191,12 @@ medigun_resist_types_t CAutoVaccinator::GetBestResistType(CTFPlayer* pLocal)
         if (!pWeapon)
             continue;
         
+        CTFWeaponBase* pTFWeapon = pWeapon->As<CTFWeaponBase>();
+        if (!pTFWeapon)
+            continue;
+        
         // Determine weapon type threat
-        switch (pWeapon->GetWeaponID())
+        switch (pTFWeapon->GetWeaponID())
         {
         // Hitscan weapons (bullet resistance)
         case TF_WEAPON_SCATTERGUN:
@@ -288,41 +292,45 @@ bool CAutoVaccinator::ShouldPopcritUber(CTFPlayer* pLocal, medigun_resist_types_
             if (!pWeapon)
                 continue;
                 
+            CTFWeaponBase* pTFWeapon = pWeapon->As<CTFWeaponBase>();
+            if (!pTFWeapon)
+                continue;
+                
             bool shouldPop = false;
             
             switch (resistType)
             {
             case MEDIGUN_BULLET_RESIST:
                 // Pop uber for bullet weapons
-                shouldPop = (pWeapon->GetWeaponID() == TF_WEAPON_SCATTERGUN || 
-                           pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PRIMARY ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_SOLDIER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_HWG ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PYRO ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_PISTOL ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_PISTOL_SCOUT ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_REVOLVER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_MINIGUN ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_SMG ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_COMPOUND_BOW);
+                shouldPop = (pTFWeapon->GetWeaponID() == TF_WEAPON_SCATTERGUN || 
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PRIMARY ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_SOLDIER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_HWG ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PYRO ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_PISTOL ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_PISTOL_SCOUT ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_REVOLVER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_MINIGUN ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SMG ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_COMPOUND_BOW);
                 break;
                 
             case MEDIGUN_BLAST_RESIST:
                 // Pop uber for explosive weapons
-                shouldPop = (pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_GRENADELAUNCHER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_PIPEBOMBLAUNCHER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_CANNON);
+                shouldPop = (pTFWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_GRENADELAUNCHER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_PIPEBOMBLAUNCHER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_CANNON);
                 break;
                 
             case MEDIGUN_FIRE_RESIST:
                 // Pop uber for fire weapons
-                shouldPop = (pWeapon->GetWeaponID() == TF_WEAPON_FLAMETHROWER ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_FLAME_BALL ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN ||
-                           pWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN_REVENGE);
+                shouldPop = (pTFWeapon->GetWeaponID() == TF_WEAPON_FLAMETHROWER ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_FLAME_BALL ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN ||
+                           pTFWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN_REVENGE);
                 break;
             }
             
@@ -423,38 +431,45 @@ bool CAutoVaccinator::ShouldPopcritUber(CTFPlayer* pLocal, medigun_resist_types_
             if (flDistance < 400.0f && pPlayer->m_hActiveWeapon().Get())
             {
                 auto pWeapon = pPlayer->m_hActiveWeapon().Get();
+                if (!pWeapon)
+                    continue;
+                    
+                CTFWeaponBase* pTFWeapon = pWeapon->As<CTFWeaponBase>();
+                if (!pTFWeapon)
+                    continue;
+                    
                 bool isRelevantWeapon = false;
                 
                 switch (resistType)
                 {
                 case MEDIGUN_BULLET_RESIST:
-                    isRelevantWeapon = (pWeapon->GetWeaponID() == TF_WEAPON_SCATTERGUN || 
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PRIMARY ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_SOLDIER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_HWG ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PYRO ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_PISTOL ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_PISTOL_SCOUT ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_REVOLVER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_MINIGUN ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SMG ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_COMPOUND_BOW);
+                    isRelevantWeapon = (pTFWeapon->GetWeaponID() == TF_WEAPON_SCATTERGUN || 
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PRIMARY ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_SOLDIER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_HWG ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SHOTGUN_PYRO ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_PISTOL ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_PISTOL_SCOUT ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_REVOLVER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_MINIGUN ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SMG ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_COMPOUND_BOW);
                     break;
                     
                 case MEDIGUN_BLAST_RESIST:
-                    isRelevantWeapon = (pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_GRENADELAUNCHER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_PIPEBOMBLAUNCHER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_CANNON);
+                    isRelevantWeapon = (pTFWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_ROCKETLAUNCHER_DIRECTHIT ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_GRENADELAUNCHER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_PIPEBOMBLAUNCHER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_CANNON);
                     break;
                     
                 case MEDIGUN_FIRE_RESIST:
-                    isRelevantWeapon = (pWeapon->GetWeaponID() == TF_WEAPON_FLAMETHROWER ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_FLAME_BALL ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN ||
-                                      pWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN_REVENGE);
+                    isRelevantWeapon = (pTFWeapon->GetWeaponID() == TF_WEAPON_FLAMETHROWER ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_FLAME_BALL ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN ||
+                                      pTFWeapon->GetWeaponID() == TF_WEAPON_FLAREGUN_REVENGE);
                     break;
                 }
                 
