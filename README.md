@@ -36,3 +36,15 @@
 [![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/m/rei-2/Amalgam)](/../../commits/)
 
 [VAC bypass](https://github.com/danielkrupinski/VAC-Bypass-Loader) and [Xenos](https://github.com/DarthTon/Xenos/releases) recommended
+
+## AutoShoot Branch Changes
+
+### New Features
+- Added a separate Auto Shoot functionality in the Aimbot section
+- Auto shoot fires when an enemy player is detected under your crosshair
+- Two filter options:
+  - Head: Only fires when an enemy head is under the crosshair
+  - Torso: Fires when an enemy torso is under the crosshair
+- Respects all existing aimbot ignore settings (cloaked players, friends, etc.)
+- Compatible with existing headshot waiting logic for Sniper and Ambassador
+- Works independently from the main aimbot's aiming systems
