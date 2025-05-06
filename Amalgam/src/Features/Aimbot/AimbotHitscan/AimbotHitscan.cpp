@@ -666,12 +666,11 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	
 	// Create trace
 	trace_t trace;
-	CTraceFilterSimple filter(pLocal);
 	Ray_t ray;
 	ray.Init(vEyePos, vEyePos + (vForward * 8192.f));
 	
 	// Trace from eye to forward
-	I::EngineTrace->TraceRay(ray, MASK_SHOT, &filter, &trace);
+	I::EngineTrace->TraceRay(ray, MASK_SHOT, pLocal, &trace);
 	
 	// If we didn't hit anything or didn't hit an entity, return false
 	if (!trace.m_pEnt || !trace.m_pEnt->GetBaseEntity()) return false;
@@ -689,10 +688,10 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	// Check for ignore conditions
 	if ((Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Friends && H::Entities.IsFriend(pPlayer->entindex()))
 		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Invulnerable && pPlayer->IsInvulnerable())
-		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Cloaked && pPlayer->IsStealthed())
+		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Cloaked && pPlayer->InCond(TF_COND_STEALTHED))
 		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::DeadRinger && pPlayer->IsAGhost())
 		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Taunting && pPlayer->IsTaunting())
-		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Vaccinator && pPlayer->IsResistingType(pWeapon->GetDamageType())))
+		|| (Vars::Aimbot::General::Ignore.Value & Vars::Aimbot::General::IgnoreEnum::Vaccinator && pPlayer->InCond(TF_COND_MEDIGUN_UBER_BULLET_RESIST)))
 	{
 		return false;
 	}
@@ -905,21 +904,25 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			Vec3 vAngle;
 			if (iCanHit & (1 << tTarget.m_nAimedHitbox))
 				vAngle = tTarget.m_vAngleTo;
-			else if (auto pBone = F::AimbotGlobal.GetOptimalBone(pPlayer, iCanHit, &CAimbotHitscan::GetHitboxPriority, pLocal, pWeapon, vAngle, tTarget.m_pEntity))
-				tTarget.m_nAimedHitbox = pBone;
 			else
-				continue;
+			{
+				int pBone = F::AimbotGlobal.GetHitbox(pPlayer, iCanHit, pLocal, pWeapon, vAngle, tTarget.m_pEntity);
+				if (pBone)
+					tTarget.m_nAimedHitbox = pBone;
+				else
+					continue;
+			}
 
 			tTarget.m_vAngleTo = vAngle;
 
 			if (Aim(pCmd->viewangles, vAngle, vAngle))
-				G::CurAimPos = tTarget.m_vPos;
+				G::AimPos = tTarget.m_vPos;
 			Aim(pCmd, vAngle);
 
 			if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 				pCmd->buttons |= IN_ATTACK;
 
-			G::AimTarget.m_nLastTick = nCurPlay->m_nTickBase();
+			G::AimTarget.m_nSimTick = nCurPlay->m_nTickBase();
 			return;
 		}
 		case TargetEnum::Sentry:
@@ -937,7 +940,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			{
 				vAngle = Math::CalcAngle(pLocal->GetShootPos(), pBuilding->GetCenter());
 				if (Aim(pCmd->viewangles, vAngle, vAngle))
-					G::CurAimPos = tTarget.m_vPos;
+					G::AimPos = tTarget.m_vPos;
 				Aim(pCmd, vAngle);
 				if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 					pCmd->buttons |= IN_ATTACK;
@@ -947,7 +950,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			{
 				vAngle = tTarget.m_vAngleTo;
 				if (Aim(pCmd->viewangles, vAngle, vAngle))
-					G::CurAimPos = tTarget.m_vPos;
+					G::AimPos = tTarget.m_vPos;
 				Aim(pCmd, vAngle);
 				if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 					pCmd->buttons |= IN_ATTACK;
@@ -960,7 +963,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 		{
 			Vec3 vAngle = tTarget.m_vAngleTo;
 			if (Aim(pCmd->viewangles, vAngle, vAngle))
-				G::CurAimPos = tTarget.m_vPos;
+				G::AimPos = tTarget.m_vPos;
 			Aim(pCmd, vAngle);
 			if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 				pCmd->buttons |= IN_ATTACK;
