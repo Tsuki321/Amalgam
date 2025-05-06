@@ -187,6 +187,11 @@ void CMenu::MenuAimbot(int iTab)
 						FDropdown(Vars::Aimbot::General::AimHoldsFire);
 					} EndSection();
 				}
+				if (Section("Crosshair Auto Shoot", 8))
+				{
+					FToggle(Vars::Aimbot::General::AutoShootByX, FToggleEnum::Left);
+					FDropdown(Vars::Aimbot::General::AutoShootByXFilter, FDropdownEnum::Right);
+				} EndSection();
 				if (Section("Backtrack", 8))
 				{
 					FToggle(Vars::Backtrack::Enabled, FToggleEnum::Left);

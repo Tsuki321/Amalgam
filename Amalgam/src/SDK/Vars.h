@@ -286,6 +286,10 @@ namespace Vars
 			CVar(IgnoreCloak, "Ignore cloak", 100.f, SLIDER_CLAMP | SLIDER_PRECISION, 0, 100, 10, "%g%%");
 			CVar(TickTolerance, "Tick tolerance", 7, SLIDER_CLAMP, 0, 21);
 			CVar(AutoShoot, "Auto shoot", true);
+			CVar(AutoShootByX, "Auto shoot by crosshair", false);
+			CVarEnum(AutoShootByXFilter, "Crosshair auto shoot filter", 0b11, DROPDOWN_MULTI, nullptr,
+				VA_LIST("Head", "Torso"),
+				Head = 1 << 0, Torso = 1 << 1);
 			CVar(FOVCircle, "FOV Circle", true);
 			CVar(NoSpread, "No spread", false);
 
