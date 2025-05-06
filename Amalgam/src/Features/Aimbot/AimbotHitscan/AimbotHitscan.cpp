@@ -669,8 +669,12 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	Ray_t ray;
 	ray.Init(vEyePos, vEyePos + (vForward * 8192.f));
 	
+	// Create and use proper trace filter
+	CTraceFilterHitscan filter;
+	filter.pSkip = pLocal;
+	
 	// Trace from eye to forward
-	I::EngineTrace->TraceRay(ray, MASK_SHOT, pLocal, &trace);
+	I::EngineTrace->TraceRay(ray, MASK_SHOT, &filter, &trace);
 	
 	// If we didn't hit anything or didn't hit an entity, return false
 	if (!trace.m_pEnt || !trace.m_pEnt->GetBaseEntity()) return false;
@@ -906,7 +910,8 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 				vAngle = tTarget.m_vAngleTo;
 			else
 			{
-				int pBone = F::AimbotGlobal.GetHitbox(pPlayer, iCanHit, pLocal, pWeapon, vAngle, tTarget.m_pEntity);
+				// Use simple bone selection without passing function pointer
+				int pBone = F::AimbotGlobal.IsHitboxValid(H::Entities.GetModel(pPlayer->entindex()), iCanHit);
 				if (pBone)
 					tTarget.m_nAimedHitbox = pBone;
 				else
@@ -916,13 +921,13 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			tTarget.m_vAngleTo = vAngle;
 
 			if (Aim(pCmd->viewangles, vAngle, vAngle))
-				G::AimPos = tTarget.m_vPos;
+				G::AimPoint.m_vOrigin = tTarget.m_vPos;
 			Aim(pCmd, vAngle);
 
 			if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 				pCmd->buttons |= IN_ATTACK;
 
-			G::AimTarget.m_nSimTick = nCurPlay->m_nTickBase();
+			G::AimTarget.m_iTickCount = nCurPlay->m_nTickBase();
 			return;
 		}
 		case TargetEnum::Sentry:
@@ -940,7 +945,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			{
 				vAngle = Math::CalcAngle(pLocal->GetShootPos(), pBuilding->GetCenter());
 				if (Aim(pCmd->viewangles, vAngle, vAngle))
-					G::AimPos = tTarget.m_vPos;
+					G::AimPoint.m_vOrigin = tTarget.m_vPos;
 				Aim(pCmd, vAngle);
 				if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 					pCmd->buttons |= IN_ATTACK;
@@ -950,7 +955,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			{
 				vAngle = tTarget.m_vAngleTo;
 				if (Aim(pCmd->viewangles, vAngle, vAngle))
-					G::AimPos = tTarget.m_vPos;
+					G::AimPoint.m_vOrigin = tTarget.m_vPos;
 				Aim(pCmd, vAngle);
 				if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 					pCmd->buttons |= IN_ATTACK;
@@ -963,7 +968,7 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 		{
 			Vec3 vAngle = tTarget.m_vAngleTo;
 			if (Aim(pCmd->viewangles, vAngle, vAngle))
-				G::AimPos = tTarget.m_vPos;
+				G::AimPoint.m_vOrigin = tTarget.m_vPos;
 			Aim(pCmd, vAngle);
 			if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 				pCmd->buttons |= IN_ATTACK;
