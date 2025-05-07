@@ -704,9 +704,41 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	int iHitbox = trace.hitbox;
 	int iHitgroup = trace.hitgroup;
 	
+	// Get the model and hitbox set
+	auto pModel = pPlayer->GetModel();
+	if (!pModel) return false;
+	auto pHDR = I::ModelInfoClient->GetStudiomodel(pModel);
+	if (!pHDR) return false;
+	auto pSet = pHDR->pHitboxSet(pPlayer->As<CBaseAnimating>()->m_nHitboxSet());
+	if (!pSet) return false;
+	
+	// Get the hitbox data
+	auto pBox = pSet->pHitbox(iHitbox);
+	if (!pBox) return false;
+	
+	// Get the hitbox center and size
+	Vec3 vHitboxCenter;
+	Math::VectorTransform((pBox->bbmin + pBox->bbmax) * 0.5f, pPlayer->GetBoneMatrix(pBox->bone), vHitboxCenter);
+	
+	// Calculate distance from trace impact to hitbox center
+	float flDistToCenter = trace.endpos.DistTo(vHitboxCenter);
+	
+	// Get hitbox size
+	Vec3 vHitboxSize = (pBox->bbmax - pBox->bbmin) * 0.5f;
+	float flHitboxRadius = vHitboxSize.Length2D();
+	
+	// Only fire if we're close enough to the center of the hitbox
+	// For head hitbox, use a smaller threshold
+	const float flHeadThreshold = flHitboxRadius * 0.3f; // 30% of hitbox radius for head
+	const float flBodyThreshold = flHitboxRadius * 0.5f; // 50% of hitbox radius for body
+	
 	// Check if we hit a head and if we should shoot at heads
 	if (bHeadFilter && iHitbox == HITBOX_HEAD)
 	{
+		// Only fire if we're close enough to the center of the head hitbox
+		if (flDistToCenter > flHeadThreshold)
+			return false;
+			
 		// Check modifiers for head shots
 		if (Vars::Aimbot::Hitscan::Modifiers.Value & Vars::Aimbot::Hitscan::ModifiersEnum::WaitForHeadshot)
 		{
@@ -734,6 +766,10 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	if (bTorsoFilter && (iHitbox == HITBOX_PELVIS || iHitbox == HITBOX_BODY || 
 		iHitbox == HITBOX_CHEST || iHitbox == HITBOX_THORAX || iHitbox == HITBOX_UPPER_CHEST))
 	{
+		// Only fire if we're close enough to the center of the body hitbox
+		if (flDistToCenter > flBodyThreshold)
+			return false;
+			
 		return true;
 	}
 	
