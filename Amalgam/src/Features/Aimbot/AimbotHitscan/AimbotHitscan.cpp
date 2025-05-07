@@ -730,12 +730,12 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	
 	// Get hitbox size
 	Vec3 vHitboxSize = (pBox->bbmax - pBox->bbmin) * 0.5f;
-	float flHitboxRadius = vHitboxSize.Length2D();
+	float flHitboxRadius = vHitboxSize.Length(); // Use full 3D length instead of just 2D
 	
 	// Only fire if we're close enough to the center of the hitbox
-	// For head hitbox, use a smaller threshold
-	const float flHeadThreshold = flHitboxRadius * 0.3f; // 30% of hitbox radius for head
-	const float flBodyThreshold = flHitboxRadius * 0.5f; // 50% of hitbox radius for body
+	// For head hitbox, use a more forgiving threshold
+	const float flHeadThreshold = flHitboxRadius * 0.7f; // Increased from 0.3 to 0.7 (70% of hitbox radius for head)
+	const float flBodyThreshold = flHitboxRadius * 0.8f; // Increased from 0.5 to 0.8 (80% of hitbox radius for body)
 	
 	// Check if we hit a head and if we should shoot at heads
 	if (bHeadFilter && iHitbox == HITBOX_HEAD)
