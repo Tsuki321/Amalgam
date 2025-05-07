@@ -718,7 +718,12 @@ bool CAimbotHitscan::ShouldFireByX(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CU
 	
 	// Get the hitbox center and size
 	Vec3 vHitboxCenter;
-	Math::VectorTransform((pBox->bbmin + pBox->bbmax) * 0.5f, pPlayer->GetBoneMatrix(pBox->bone), vHitboxCenter);
+	matrix3x4 aBones[MAXSTUDIOBONES];
+	if (pPlayer->SetupBones(aBones, MAXSTUDIOBONES, BONE_USED_BY_ANYTHING, I::GlobalVars->curtime)) {
+		Math::VectorTransform((pBox->bbmin + pBox->bbmax) * 0.5f, aBones[pBox->bone], vHitboxCenter);
+	} else {
+		return false;
+	}
 	
 	// Calculate distance from trace impact to hitbox center
 	float flDistToCenter = trace.endpos.DistTo(vHitboxCenter);
