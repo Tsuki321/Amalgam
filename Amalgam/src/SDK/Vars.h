@@ -692,6 +692,10 @@ namespace Vars
 			CVar(MaxVelocity, "Max velocity", 2000.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, 0.f, 4000.f, 50.f);
 			CVar(MaxAngularVelocity, "Max angular velocity", 3600.f, NOSAVE | DEBUGVAR | SLIDER_MIN | SLIDER_PRECISION, 0.f, 7200.f, 50.f);
 		SUBNAMESPACE_END(ProjectileTrajectory);
+
+		SUBNAMESPACE_BEGIN(Other)
+			CVar(KillstreakWeapons, "Killstreak weapons", false, VISUAL);
+		SUBNAMESPACE_END(Other);
 	NAMESPACE_END(Visuals);
 
 	NAMESPACE_BEGIN(Misc)

@@ -838,6 +838,10 @@ void CMenu::MenuVisuals(int iTab)
 					FToggle(Vars::Visuals::Effects::DrawIconsThroughWalls);
 					FToggle(Vars::Visuals::Effects::DrawDamageNumbersThroughWalls);
 				} EndSection();
+				if (Section("Other", 8))
+				{
+					FToggle(Vars::Visuals::Other::KillstreakWeapons);
+				} EndSection();
 			}
 			/* Column 2 */
 			TableNextColumn();
