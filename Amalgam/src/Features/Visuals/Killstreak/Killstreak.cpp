@@ -12,20 +12,15 @@ void CKillstreak::ApplyKillstreak(int iLocalIdx)
 		if (const auto& pResource = H::Entities.GetResource())
 		{
 			int iCurrentStreak = GetCurrentStreak();
-			// m_iStreaks is a 2D array: [playerIndex * kTFStreak_COUNT + streakType]
-			pResource->m_iStreaks(iLocalIdx * kTFStreak_COUNT + kTFStreak_Kills) = iCurrentStreak;
-			pResource->m_iStreaks(iLocalIdx * kTFStreak_COUNT + kTFStreak_KillsAll) = iCurrentStreak;
-			pResource->m_iStreaks(iLocalIdx * kTFStreak_COUNT + kTFStreak_Ducks) = iCurrentStreak;
-			pResource->m_iStreaks(iLocalIdx * kTFStreak_COUNT + kTFStreak_Duck_levelup) = iCurrentStreak;
-
-			// m_nStreaks is a void* pointer to an array of 4 ints (one for each streak type)
-			int* pStreaks = reinterpret_cast<int*>(pLocal->m_nStreaks());
-			if (pStreaks)
+			// Use bounds-safe indexing into m_iStreaks (flattened [player][streak] array)
+			int maxClients = I::EngineClient->GetMaxClients();
+			if (iLocalIdx > 0 && iLocalIdx <= maxClients)
 			{
-				pStreaks[kTFStreak_Kills] = iCurrentStreak;
-				pStreaks[kTFStreak_KillsAll] = iCurrentStreak;
-				pStreaks[kTFStreak_Ducks] = iCurrentStreak;
-				pStreaks[kTFStreak_Duck_levelup] = iCurrentStreak;
+				const int base = (iLocalIdx - 1) * kTFStreak_COUNT; // arrays are typically 0-based
+				pResource->m_iStreaks(base + kTFStreak_Kills) = iCurrentStreak;
+				pResource->m_iStreaks(base + kTFStreak_KillsAll) = iCurrentStreak;
+				pResource->m_iStreaks(base + kTFStreak_Ducks) = iCurrentStreak;
+				pResource->m_iStreaks(base + kTFStreak_Duck_levelup) = iCurrentStreak;
 			}
 		}
 	}
