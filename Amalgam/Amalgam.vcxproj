@@ -918,6 +918,7 @@
     <ClCompile Include="src\Features\Misc\AutoQueue\AutoQueue.cpp" />
     <ClCompile Include="src\Features\Backtrack\Backtrack.cpp" />
     <ClCompile Include="src\Features\Visuals\CameraWindow\CameraWindow.cpp" />
+    <ClCompile Include="src\Features\Visuals\Killstreak\Killstreak.cpp" />
     <ClCompile Include="src\Features\CheaterDetection\CheaterDetection.cpp" />
     <ClCompile Include="src\Features\Commands\Commands.cpp" />
     <ClCompile Include="src\Features\Binds\Binds.cpp" />
@@ -953,6 +954,7 @@
     <ClCompile Include="src\Features\Visuals\OffscreenArrows\OffscreenArrows.cpp" />
     <ClCompile Include="src\Features\Visuals\SpectatorList\SpectatorList.cpp" />
     <ClCompile Include="src\Features\Visuals\Visuals.cpp" />
+    <ClCompile Include="src\Hooks\CHudItemEffectMeter_Weapon_C_TFWeaponBase_IsEnabled.cpp" />
     <ClCompile Include="src\Hooks\bf_read_ReadString.cpp" />
     <ClCompile Include="src\Hooks\CAchievementMgr_CheckAchievementsEnabled.cpp" />
     <ClCompile Include="src\Hooks\CAttributeManager_AttribHookValue.cpp" />
@@ -1337,6 +1339,7 @@
     <ClInclude Include="src\SDK\Definitions\Steam\Steam_Gameserver.h" />
     <ClInclude Include="src\Core\Core.h" />
     <ClInclude Include="src\Features\Visuals\CameraWindow\CameraWindow.h" />
+    <ClInclude Include="src\Features\Visuals\Killstreak\Killstreak.h" />
     <ClInclude Include="src\Features\Commands\Commands.h" />
     <ClInclude Include="src\Features\Binds\Binds.h" />
     <ClInclude Include="src\Features\Configs\Configs.h" />
