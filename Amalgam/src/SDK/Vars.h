@@ -731,6 +731,9 @@ namespace Vars
 			CVar(AutoF1Priority, "Auto F1 priority", false);
 			CVar(AcceptItemDrops, "Auto accept item drops", false);
 		SUBNAMESPACE_END(Automation);
+		SUBNAMESPACE_BEGIN(AutoDisguise)
+			CVar(Enabled, "Auto disguise", false);
+		SUBNAMESPACE_END(AutoDisguise);
 
 		SUBNAMESPACE_BEGIN(Exploits)
 			CVar(PureBypass, "Pure bypass", false);

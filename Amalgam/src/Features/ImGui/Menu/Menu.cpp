@@ -1025,7 +1025,8 @@ void CMenu::MenuMisc(int iTab)
 					FToggle(Vars::Misc::Automation::KartControl, FToggleEnum::Right);
 					FToggle(Vars::Misc::Automation::AutoF2Ignored, FToggleEnum::Left);
 					FToggle(Vars::Misc::Automation::AutoF1Priority, FToggleEnum::Right);
-					FToggle(Vars::Misc::Automation::AcceptItemDrops);
+					FToggle(Vars::Misc::Automation::AcceptItemDrops, FToggleEnum::Left);
+					FToggle(Vars::Misc::AutoDisguise::Enabled, FToggleEnum::Right);
 				} EndSection();
 				if (Section("Mann vs. Machine", 8))
 				{

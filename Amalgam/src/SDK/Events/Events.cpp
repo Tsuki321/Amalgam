@@ -2,6 +2,7 @@
 
 #include "../../Core/Core.h"
 #include "../../Features/Aimbot/AutoHeal/AutoHeal.h"
+#include "../../Features/AutoDisguise/AutoDisguise.h"
 #include "../../Features/Backtrack/Backtrack.h"
 #include "../../Features/CheaterDetection/CheaterDetection.h"
 #include "../../Features/CritHack/CritHack.h"
@@ -13,8 +14,8 @@
 
 bool CEventListener::Initialize()
 {
-	std::vector<const char*> vEvents = { 
-		"client_beginconnect", "client_connected", "client_disconnect", "game_newmap", "teamplay_round_start", "scorestats_accumulated_update", "mvm_reset_stats", "player_connect_client", "player_spawn", "player_changeclass", "player_hurt", "vote_cast", "item_pickup", "revive_player_notify"
+	std::vector<const char*> vEvents = {
+		"client_beginconnect", "client_connected", "client_disconnect", "game_newmap", "teamplay_round_start", "scorestats_accumulated_update", "mvm_reset_stats", "player_connect_client", "player_spawn", "player_changeclass", "player_hurt", "player_death", "vote_cast", "item_pickup", "revive_player_notify"
 	};
 
 	for (auto szEvent : vEvents)
@@ -54,6 +55,9 @@ void CEventListener::FireGameEvent(IGameEvent* pEvent)
 	F::Visuals.Event(pEvent, uHash);
 	switch (uHash)
 	{
+	case FNV1A::Hash32Const("player_death"):
+		F::AutoDisguise.Event(pEvent, uHash, pLocal);
+		break;
 	case FNV1A::Hash32Const("player_hurt"):
 		F::Resolver.PlayerHurt(pEvent);
 		F::CheaterDetection.ReportDamage(pEvent);
