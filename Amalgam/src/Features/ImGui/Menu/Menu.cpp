@@ -161,6 +161,7 @@ void CMenu::MenuAimbot(int iTab)
 						FSlider(Vars::Aimbot::General::TickTolerance, FSliderEnum::Right);
 					}
 					PopTransparent();
+					FSlider(Vars::Aimbot::General::SwitchDelay, FSliderEnum::Left);
 					FColorPicker(Vars::Colors::FOVCircle);
 					FToggle(Vars::Aimbot::General::AutoShoot, FToggleEnum::Left);
 					FToggle(Vars::Aimbot::General::FOVCircle, FToggleEnum::Right);

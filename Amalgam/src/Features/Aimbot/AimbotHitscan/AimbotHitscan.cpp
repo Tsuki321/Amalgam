@@ -786,11 +786,57 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			pCmd->buttons |= IN_ATTACK;
 	}
 
-	if (!G::AimTarget.m_iEntIndex)
-		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
+	// Target switch delay logic
+	bool bCanSwitchTarget = true;
+	float flCurrentTime = I::EngineClient->Time();
+	
+	if (G::AimTarget.m_iEntIndex != 0 && vTargets.front().m_pEntity->entindex() != G::AimTarget.m_iEntIndex)
+	{
+		float flTimeSinceLastAcquire = (flCurrentTime - G::AimTarget.m_flLastAcquiredTime) * 1000.0f; // Convert to milliseconds
+		if (flTimeSinceLastAcquire < Vars::Aimbot::General::SwitchDelay.Value)
+		{
+			bCanSwitchTarget = false;
+		}
+		else
+		{
+			// Reset target - set new acquisition time
+			G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+		}
+	}
+	else if (!G::AimTarget.m_iEntIndex)
+	{
+		// No current target - set new acquisition time
+		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+	}
+
+	// If we can't switch targets, use the current target if it's still valid
+	if (!bCanSwitchTarget && G::AimTarget.m_iEntIndex)
+	{
+		// Check if current target is still in our target list
+		bool bCurrentTargetStillValid = false;
+		for (auto& tTarget : vTargets)
+		{
+			if (tTarget.m_pEntity->entindex() == G::AimTarget.m_iEntIndex)
+			{
+				bCurrentTargetStillValid = true;
+				break;
+			}
+		}
+		
+		if (!bCurrentTargetStillValid)
+		{
+			// Current target is no longer valid, we must switch
+			bCanSwitchTarget = true;
+			G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+		}
+	}
 
 	for (auto& tTarget : vTargets)
 	{
+		// Skip targets that don't match our current target if switch delay is active
+		if (!bCanSwitchTarget && tTarget.m_pEntity->entindex() != G::AimTarget.m_iEntIndex)
+			continue;
+
 		if (nWeaponID == TF_WEAPON_MEDIGUN && pWeapon->As<CWeaponMedigun>()->m_hHealingTarget().Get() == tTarget.m_pEntity)
 		{
 			if (G::LastUserCmd->buttons & IN_ATTACK)
@@ -802,13 +848,21 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 		if (!iResult) continue;
 		if (iResult == 2)
 		{
-			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
+			// Only switch target if we can (delay expired)
+			if (bCanSwitchTarget)
+			{
+				G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+			}
 			Aim(pCmd, tTarget.m_vAngleTo);
 			break;
 		}
 
-		G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount };
-		G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
+		// Only switch target if we can (delay expired)
+		if (bCanSwitchTarget || tTarget.m_pEntity->entindex() == G::AimTarget.m_iEntIndex)
+		{
+			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+			G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
+		}
 
 		if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
 		{

@@ -1761,8 +1761,50 @@ bool CAimbotProjectile::RunMain(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUser
 			return false;
 	}
 
-	if (!G::AimTarget.m_iEntIndex)
-		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
+	// Target switch delay logic
+	bool bCanSwitchTarget = true;
+	float flCurrentTime = I::EngineClient->Time();
+	
+	if (G::AimTarget.m_iEntIndex != 0 && vTargets.front().m_pEntity->entindex() != G::AimTarget.m_iEntIndex)
+	{
+		float flTimeSinceLastAcquire = (flCurrentTime - G::AimTarget.m_flLastAcquiredTime) * 1000.0f; // Convert to milliseconds
+		if (flTimeSinceLastAcquire < Vars::Aimbot::General::SwitchDelay.Value)
+		{
+			bCanSwitchTarget = false;
+		}
+		else
+		{
+			// Reset target - set new acquisition time
+			G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+		}
+	}
+	else if (!G::AimTarget.m_iEntIndex)
+	{
+		// No current target - set new acquisition time
+		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+	}
+
+	// If we can't switch targets, use the current target if it's still valid
+	if (!bCanSwitchTarget && G::AimTarget.m_iEntIndex)
+	{
+		// Check if current target is still in our target list
+		bool bCurrentTargetStillValid = false;
+		for (auto& tTarget : vTargets)
+		{
+			if (tTarget.m_pEntity->entindex() == G::AimTarget.m_iEntIndex)
+			{
+				bCurrentTargetStillValid = true;
+				break;
+			}
+		}
+		
+		if (!bCurrentTargetStillValid)
+		{
+			// Current target is no longer valid, we must switch
+			bCanSwitchTarget = true;
+			G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 32, flCurrentTime };
+		}
+	}
 
 #if defined(SPLASH_DEBUG1) || defined(SPLASH_DEBUG2) || defined(SPLASH_DEBUG3) || defined(SPLASH_DEBUG5)
 	G::LineStorage.clear();
@@ -2263,7 +2305,7 @@ bool CAimbotProjectile::AutoAirblast(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, 
 		const bool bResult = CanHit(tTarget, pLocal, pWeapon, pProjectile);
 		if (!bResult) continue;
 
-		G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount };
+		G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 32, I::EngineClient->Time() };
 		G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
 
 		G::Attacking = true;

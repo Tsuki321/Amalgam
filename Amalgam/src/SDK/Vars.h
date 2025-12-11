@@ -277,6 +277,7 @@ namespace Vars
 			CVar(AutoShoot, "Auto shoot", true);
 			CVar(FOVCircle, "FOV Circle", true, VISUAL);
 			CVar(NoSpread, "No spread", false);
+			CVar(SwitchDelay, "Target switch delay", 100.f, SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 2000.f, 0.1f, "%.1f ms");
 
 			CVarEnum(AimHoldsFire, "Aim holds fire", 2, NOSAVE | DEBUGVAR, nullptr,
 				VA_LIST("False", "Minigun only", "Always"),
