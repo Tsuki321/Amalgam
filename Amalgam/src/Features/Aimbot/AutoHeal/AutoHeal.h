@@ -9,7 +9,7 @@ private:
 	void AutoHeal(CTFPlayer* pLocal, CWeaponMedigun* pWeapon, CUserCmd* pCmd);
 	void ActivateOnVoice(CTFPlayer* pLocal, CWeaponMedigun* pWeapon, CUserCmd* pCmd);
 	void AutoVaccinator(CTFPlayer* pLocal, CWeaponMedigun* pWeapon, CUserCmd* pCmd);
-	void GetDangers(CTFPlayer* pTarget, bool bVaccinator, float& flBulletDanger, float& flBlastDanger, float& flFireDanger);
+	void GetDangers(CTFPlayer* pTarget, CTFPlayer* pMedic, bool bVaccinator, float& flBulletDanger, float& flBlastDanger, float& flFireDanger);
 	void SwapResistType(CUserCmd* pCmd, int iType);
 	void ActivateResistType(CUserCmd* pCmd, int iType);
 
@@ -22,6 +22,10 @@ private:
 	int m_iDamagedType = -1;
 	float m_flDamagedDPS = -1;
 	float m_flDamagedTime = 0.f;
+
+	float m_flLastSwitchTime = 0.f;
+	float m_flSmoothedDanger[3] = {0.f, 0.f, 0.f};
+	float m_flCurrentDanger = 0.f;
 
 #ifdef DEBUG_VACCINATOR
 	std::vector<std::pair<float, int>> vResistDangers = {};

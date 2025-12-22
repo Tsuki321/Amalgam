@@ -13,6 +13,7 @@
 #include "../Features/Visuals/Visuals.h"
 #include "../Features/Visuals/FakeAngle/FakeAngle.h"
 #include "../Features/Spectate/Spectate.h"
+#include "../Features/AutoDisguise/AutoDisguise.h"
 
 #define MATH_EPSILON (1.f / 16)
 #define PSILENT_EPSILON (1.f - MATH_EPSILON)
@@ -265,6 +266,9 @@ MAKE_HOOK(CHLClient_CreateMove, U::Memory.GetVirtual(I::Client, 21), void,
 		F::AntiAim.Run(pLocal, pWeapon, pCmd, *pSendPacket);
 		F::NoSpreadHitscan.AskForPlayerPerf();
 	F::EnginePrediction.End(pLocal, pCmd);
+
+	// Run AutoDisguise state checking
+	F::AutoDisguise.Run(pLocal);
 
 	AntiCheatCompatibility(pCmd, pSendPacket);
 	LocalAnimations(pLocal, pCmd, *pSendPacket);
