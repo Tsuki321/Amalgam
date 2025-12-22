@@ -58,7 +58,7 @@ void CAimbot::RunMain(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd)
 		{
 			if (auto pEntity = I::ClientEntityList->GetClientEntity(G::AimTarget.m_iEntIndex))
 			{
-				if (!F::AimbotGlobal.ShouldIgnore(pEntity, pLocal, pWeapon))
+				if (!F::AimbotGlobal.ShouldIgnore(pEntity->As<CBaseEntity>(), pLocal, pWeapon))
 				{
 					// Target is still valid, refresh the tick count
 					G::AimTarget.m_iTickCount = I::GlobalVars->tickcount;
