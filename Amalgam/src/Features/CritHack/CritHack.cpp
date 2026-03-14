@@ -95,11 +95,11 @@ void CCritHack::UpdateWeaponInfo(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 	const float flLastBucket = flStaticBucket;
 	const float flBucket = flStaticBucket = pWeapon->m_flCritTokenBucket();
 
-	static int iStaticCritChecks = 0.f;
+	static int iStaticCritChecks = 0;
 	const int iLastCritChecks = iStaticCritChecks;
 	const int iCritChecks = iStaticCritChecks = pWeapon->m_nCritChecks();
 
-	static int iStaticCritSeedRequests = 0.f;
+	static int iStaticCritSeedRequests = 0;
 	const int iLastCritSeedRequests = iStaticCritSeedRequests;
 	const int iCritSeedRequests = iStaticCritSeedRequests = pWeapon->m_nCritSeedRequests();
 

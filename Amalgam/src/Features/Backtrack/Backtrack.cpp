@@ -294,7 +294,7 @@ void CBacktrack::CleanRecords()
 
 		//const int iOldSize = pRecords.size();
 
-		const int flDeadtime = I::GlobalVars->curtime + GetReal() - m_flMaxUnlag; // int ???
+		const float flDeadtime = I::GlobalVars->curtime + GetReal() - m_flMaxUnlag;
 		if (vRecords.size() > 1 && vRecords.back().m_flSimTime == std::numeric_limits<float>::max())
 			vRecords.pop_back();
 		while (!vRecords.empty())
