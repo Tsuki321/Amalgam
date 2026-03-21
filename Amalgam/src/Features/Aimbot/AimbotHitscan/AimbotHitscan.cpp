@@ -750,7 +750,11 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 
 	auto vTargets = F::AimbotGlobal.ManageTargets(GetTargets, pLocal, pWeapon);
 	if (vTargets.empty())
+	{
+		m_iLockedPlayerIndex = 0;
+		m_iSwitchUnlockTick = 0;
 		return;
+	}
 
 	switch (nWeaponID)
 	{
@@ -774,11 +778,139 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			pCmd->buttons |= IN_ATTACK;
 	}
 
+	const auto IsEnemyPlayerTarget = [&](const Target_t& tTarget) -> bool
+		{
+			return tTarget.m_iTargetType == TargetEnum::Player
+				&& tTarget.m_pEntity
+				&& tTarget.m_pEntity->m_iTeamNum() != pLocal->m_iTeamNum();
+		};
+	const auto UpdatePlayerSwitchLock = [&](const Target_t& tTarget)
+		{
+			if (!IsEnemyPlayerTarget(tTarget))
+			{
+				m_iLockedPlayerIndex = 0;
+				m_iSwitchUnlockTick = 0;
+				return;
+			}
+
+			const int iTargetIndex = tTarget.m_pEntity->entindex();
+			const int iDelayTicks = std::max(TIME_TO_TICKS(Vars::Aimbot::Hitscan::PlayerSwitchDelay.Value), 0);
+			if (m_iLockedPlayerIndex != iTargetIndex)
+			{
+				m_iLockedPlayerIndex = iTargetIndex;
+				m_iSwitchUnlockTick = I::GlobalVars->tickcount + iDelayTicks;
+			}
+		};
+
+	if (nWeaponID == TF_WEAPON_MEDIGUN)
+	{
+		m_iLockedPlayerIndex = 0;
+		m_iSwitchUnlockTick = 0;
+	}
+
+	if (m_iLockedPlayerIndex)
+	{
+		bool bFound = false;
+		for (const auto& tTarget : vTargets)
+		{
+			if (IsEnemyPlayerTarget(tTarget) && tTarget.m_pEntity->entindex() == m_iLockedPlayerIndex)
+			{
+				bFound = true;
+				break;
+			}
+		}
+		if (!bFound)
+		{
+			m_iLockedPlayerIndex = 0;
+			m_iSwitchUnlockTick = 0;
+		}
+	}
+
+	bool bDelayActive = m_iLockedPlayerIndex
+		&& I::GlobalVars->tickcount < m_iSwitchUnlockTick
+		&& Vars::Aimbot::Hitscan::PlayerSwitchDelay.Value > 0.f;
+
 	if (!G::AimTarget.m_iEntIndex)
 		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
 
+	const auto SelectTarget = [&](Target_t& tTarget, int iResult)
+		{
+			if (iResult == 2)
+			{
+				UpdatePlayerSwitchLock(tTarget);
+				G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
+				Aim(pCmd, tTarget.m_vAngleTo);
+				return;
+			}
+
+			UpdatePlayerSwitchLock(tTarget);
+			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount };
+			G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
+
+			if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
+			{
+				switch (nWeaponID)
+				{
+				case TF_WEAPON_MEDIGUN:
+					if (!(G::LastUserCmd->buttons & IN_ATTACK))
+						pCmd->buttons |= IN_ATTACK;
+					break;
+				case TF_WEAPON_SNIPERRIFLE_CLASSIC:
+					if (pWeapon->As<CTFSniperRifle>()->m_flChargedDamage() && pLocal->m_hGroundEntity())
+						pCmd->buttons &= ~IN_ATTACK;
+					break;
+				case TF_WEAPON_LASER_POINTER:
+					pCmd->buttons |= IN_ATTACK | IN_ATTACK2;
+					break;
+				default:
+					pCmd->buttons |= IN_ATTACK;
+				}
+
+				if (Vars::Aimbot::Hitscan::Modifiers.Value & Vars::Aimbot::Hitscan::ModifiersEnum::Tapfire && pWeapon->GetWeaponSpread() != 0.f && !pLocal->InCond(TF_COND_RUNE_PRECISION)
+					&& m_vEyePos.DistTo(tTarget.m_vPos) > Vars::Aimbot::Hitscan::TapfireDistance.Value)
+				{
+					const float flTimeSinceLastShot = (pLocal->m_nTickBase() * TICK_INTERVAL) - pWeapon->m_flLastFireTime();
+					if (flTimeSinceLastShot <= (pWeapon->GetBulletsPerShot() > 1 ? 0.25f : 1.25f))
+						pCmd->buttons &= ~IN_ATTACK;
+				}
+			}
+
+			G::Attacking = SDK::IsAttacking(pLocal, pWeapon, pCmd, true);
+			if (G::Attacking == 1 && nWeaponID != TF_WEAPON_LASER_POINTER)
+			{
+				if (tTarget.m_pEntity->IsPlayer())
+					F::Resolver.HitscanRan(pLocal, tTarget.m_pEntity->As<CTFPlayer>(), pWeapon, tTarget.m_nAimedHitbox);
+
+				if (tTarget.m_bBacktrack)
+					pCmd->tick_count = TIME_TO_TICKS(tTarget.m_pRecord->m_flSimTime) + TIME_TO_TICKS(F::Backtrack.GetFakeInterp());
+			}
+			DrawVisuals(pLocal, tTarget, nWeaponID);
+
+			Aim(pCmd, tTarget.m_vAngleTo);
+			if (G::SilentAngles)
+			{
+				switch (nWeaponID)
+				{
+				case TF_WEAPON_MEDIGUN:
+				//case TF_WEAPON_LASER_POINTER: // we can psilent with the wrangler though probably with some hacks
+					G::SilentAngles = false, G::PSilentAngles = true;
+				}
+			}
+		};
+
+	bool bLockedEvaluated = !bDelayActive;
+	std::vector<Target_t*> vDeferredEnemyPlayers = {};
 	for (auto& tTarget : vTargets)
 	{
+		const bool bEnemyPlayerTarget = IsEnemyPlayerTarget(tTarget);
+		const bool bLockedEnemyTarget = bEnemyPlayerTarget && tTarget.m_pEntity->entindex() == m_iLockedPlayerIndex;
+		if (bDelayActive && bEnemyPlayerTarget && !bLockedEnemyTarget)
+		{
+			if (!bLockedEvaluated)
+				vDeferredEnemyPlayers.push_back(&tTarget);
+			continue;
+		}
+
 		if (nWeaponID == TF_WEAPON_MEDIGUN && pWeapon->As<CWeaponMedigun>()->m_hHealingTarget().Get() == tTarget.m_pEntity)
 		{
 			if (G::LastUserCmd->buttons & IN_ATTACK)
@@ -787,66 +919,33 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 		}
 
 		const auto iResult = CanHit(tTarget, pLocal, pWeapon);
-		if (!iResult) continue;
-		if (iResult == 2)
+		if (!iResult)
 		{
-			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
-			Aim(pCmd, tTarget.m_vAngleTo);
-			break;
-		}
-
-		G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount };
-		G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
-
-		if (ShouldFire(pLocal, pWeapon, pCmd, tTarget))
-		{
-			switch (nWeaponID)
+			if (bDelayActive && bLockedEnemyTarget)
 			{
-			case TF_WEAPON_MEDIGUN:
-				if (!(G::LastUserCmd->buttons & IN_ATTACK))
-					pCmd->buttons |= IN_ATTACK;
-				break;
-			case TF_WEAPON_SNIPERRIFLE_CLASSIC:
-				if (pWeapon->As<CTFSniperRifle>()->m_flChargedDamage() && pLocal->m_hGroundEntity())
-					pCmd->buttons &= ~IN_ATTACK;
-				break;
-			case TF_WEAPON_LASER_POINTER:
-				pCmd->buttons |= IN_ATTACK | IN_ATTACK2;
-				break;
-			default:
-				pCmd->buttons |= IN_ATTACK;
-			}
+				bLockedEvaluated = true;
+				m_iLockedPlayerIndex = 0;
+				m_iSwitchUnlockTick = 0;
+				bDelayActive = false;
 
-			if (Vars::Aimbot::Hitscan::Modifiers.Value & Vars::Aimbot::Hitscan::ModifiersEnum::Tapfire && pWeapon->GetWeaponSpread() != 0.f && !pLocal->InCond(TF_COND_RUNE_PRECISION)
-				&& m_vEyePos.DistTo(tTarget.m_vPos) > Vars::Aimbot::Hitscan::TapfireDistance.Value)
-			{
-				const float flTimeSinceLastShot = (pLocal->m_nTickBase() * TICK_INTERVAL) - pWeapon->m_flLastFireTime();
-				if (flTimeSinceLastShot <= (pWeapon->GetBulletsPerShot() > 1 ? 0.25f : 1.25f))
-					pCmd->buttons &= ~IN_ATTACK;
+				for (auto* pDeferredTarget : vDeferredEnemyPlayers)
+				{
+					const auto iDeferredResult = CanHit(*pDeferredTarget, pLocal, pWeapon);
+					if (!iDeferredResult)
+						continue;
+
+					SelectTarget(*pDeferredTarget, iDeferredResult);
+					return;
+				}
+				vDeferredEnemyPlayers.clear();
 			}
+			continue;
 		}
 
-		G::Attacking = SDK::IsAttacking(pLocal, pWeapon, pCmd, true);
-		if (G::Attacking == 1 && nWeaponID != TF_WEAPON_LASER_POINTER)
-		{
-			if (tTarget.m_pEntity->IsPlayer())
-				F::Resolver.HitscanRan(pLocal, tTarget.m_pEntity->As<CTFPlayer>(), pWeapon, tTarget.m_nAimedHitbox);
+		if (bLockedEnemyTarget)
+			bLockedEvaluated = true;
 
-			if (tTarget.m_bBacktrack)
-				pCmd->tick_count = TIME_TO_TICKS(tTarget.m_pRecord->m_flSimTime) + TIME_TO_TICKS(F::Backtrack.GetFakeInterp());
-		}
-		DrawVisuals(pLocal, tTarget, nWeaponID);
-
-		Aim(pCmd, tTarget.m_vAngleTo);
-		if (G::SilentAngles)
-		{
-			switch (nWeaponID)
-			{
-			case TF_WEAPON_MEDIGUN:
-			//case TF_WEAPON_LASER_POINTER: // we can psilent with the wrangler though probably with some hacks
-				G::SilentAngles = false, G::PSilentAngles = true;
-			}
-		}
-		break;
+		SelectTarget(tTarget, iResult);
+		return;
 	}
 }

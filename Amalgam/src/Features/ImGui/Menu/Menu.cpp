@@ -229,6 +229,7 @@ void CMenu::MenuAimbot(int iTab)
 						FSlider(Vars::Aimbot::Hitscan::TapfireDistance);
 					}
 					PopTransparent();
+					FSlider(Vars::Aimbot::Hitscan::PlayerSwitchDelay);
 				} EndSection();
 				if (Vars::Debug::Options.Value)
 				{

@@ -14,6 +14,8 @@ private:
 	bool ShouldFire(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd, const Target_t& tTarget);
 
 	Vec3 m_vEyePos = {};
+	int m_iLockedPlayerIndex = 0;
+	int m_iSwitchUnlockTick = 0;
 
 public:
 	void Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd);
