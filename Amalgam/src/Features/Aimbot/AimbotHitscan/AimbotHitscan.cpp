@@ -844,6 +844,17 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			}
 
 			UpdatePlayerSwitchLock(tTarget);
+
+			if (m_iLockedPlayerIndex == tTarget.m_pEntity->entindex()
+				&& I::GlobalVars->tickcount < m_iSwitchUnlockTick
+				&& Vars::Aimbot::Hitscan::PlayerSwitchDelay.Value > 0.f)
+			{
+				// Workaround for visuals: Update targets so ESP and other UI modules know we are locked/delaying
+				G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
+				G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
+				return; // Delay active, wait for tick to unlock before aiming and shooting
+			}
+
 			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount };
 			G::AimPoint = { tTarget.m_vPos, I::GlobalVars->tickcount };
 
