@@ -11,7 +11,7 @@
 IMaterial* CMaterials::Create(char const* szName, KeyValues* pKV)
 {
 	IMaterial* pMaterial = I::MaterialSystem->CreateMaterial(szName, pKV);
-	m_mMatList[pMaterial];
+	m_vMatList.push_back(pMaterial);
 	return pMaterial;
 }
 
@@ -20,8 +20,8 @@ void CMaterials::Remove(IMaterial* pMaterial)
 	if (!pMaterial)
 		return;
 
-	if (m_mMatList.contains(pMaterial))
-		m_mMatList.erase(pMaterial);
+	if (auto it = std::find(m_vMatList.begin(), m_vMatList.end(), pMaterial); it != m_vMatList.end())
+		m_vMatList.erase(it);
 
 	pMaterial->DecrementReferenceCount();
 	pMaterial->DeleteIfUnreferenced();
@@ -237,7 +237,7 @@ void CMaterials::UnloadMaterials()
 	for (auto& tMaterial : m_mMaterials | std::views::values)
 		Remove(tMaterial.m_pMaterial);
 	m_mMaterials.clear();
-	m_mMatList.clear();
+	m_vMatList.clear();
 
 	F::Glow.Unload();
 	F::CameraWindow.Unload();

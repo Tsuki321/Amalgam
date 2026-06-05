@@ -35,7 +35,7 @@ public:
 	void RemoveMaterial(const char* sName);
 
 	std::unordered_map<uint32_t, Material_t> m_mMaterials = {};
-	std::unordered_mapset<IMaterial*> m_mMatList = {};
+	std::vector<IMaterial*> m_vMatList = {};
 
 	bool m_bLoaded = false;
 	bool m_bReloadPending = false;

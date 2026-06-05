@@ -22,6 +22,8 @@ class CResolver
 private:
 	void StoreSniperDots(CTFPlayerResource* pResource);
 	std::optional<float> GetPitchForSniperDot(CTFPlayer* pEntity, CTFPlayerResource* pResource);
+
+	CTFPlayer* RunClosestToFOV();
 	
 	std::unordered_map<int, ResolveData> m_mResolverData = {};
 	std::unordered_map<int, Vec3> m_mSniperDots = {};
@@ -35,6 +37,9 @@ private:
 	float m_flLastMinwalkCycle = 0.f;
 	float m_flLastViewCycle = 0.f;
 
+	int m_iClosestFOVTargetTick = 0;
+	CTFPlayer* m_pClosestFOVTarget = nullptr;
+
 public:
 	void FrameStageNotify();
 	void CreateMove();
@@ -45,6 +50,7 @@ public:
 	void SetMinwalk(int iUserID, bool bValue);
 	void SetView(int iUserID, bool bValue);
 	bool GetAngles(CTFPlayer* pPlayer, float* pYaw = nullptr, float* pPitch = nullptr, bool* pMinwalk = nullptr, bool bFake = false);
+	CTFPlayer* GetClosestToFOV() { return m_pClosestFOVTarget; }
 	void Reset();
 };
 
