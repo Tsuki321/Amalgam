@@ -28,50 +28,54 @@ bool CCheatDetection::InvalidPitch(CTFPlayer* pEntity)
 
 bool CCheatDetection::IsChoking(CTFPlayer* pEntity)
 {
-	bool bReturn = mData[pEntity].m_PacketChoking.m_bInfract;
-	mData[pEntity].m_PacketChoking.m_bInfract = false;
+	auto& pc = mData[pEntity].m_PacketChoking;
+	bool bReturn = pc.m_bInfract;
+	pc.m_bInfract = false;
 
 	return Vars::CheatDetection::Methods.Value & Vars::CheatDetection::MethodsEnum::PacketChoking && bReturn;
 }
 
 bool CCheatDetection::IsFlicking(CTFPlayer* pEntity) // awful
 {
-	auto& vAngles = mData[pEntity].m_AimFlicking.m_vAngles;
+	auto& af = mData[pEntity].m_AimFlicking;
 	if (!(Vars::CheatDetection::Methods.Value & Vars::CheatDetection::MethodsEnum::AimFlicking))
 	{
-		vAngles.clear();
+		af.m_iAngleCount = 0;
 		return false;
 	}
 
-	vAngles.emplace_front(pEntity->GetEyeAngles(), false);
-	if (vAngles.size() > 3)
-		vAngles.pop_back();
+	af.m_aAngles[2] = af.m_aAngles[1];
+	af.m_aAngles[1] = af.m_aAngles[0];
+	af.m_aAngles[0] = { pEntity->GetEyeAngles(), false };
+	if (af.m_iAngleCount < 3)
+		af.m_iAngleCount++;
 
-	if (vAngles.size() != 3 || !vAngles[0].m_bAttacking && !vAngles[1].m_bAttacking && !vAngles[2].m_bAttacking
-		|| Math::CalcFov(vAngles[0].m_vAngle, vAngles[1].m_vAngle) < Vars::CheatDetection::MinFlick.Value
-		|| Math::CalcFov(vAngles[0].m_vAngle, vAngles[2].m_vAngle) > Vars::CheatDetection::MaxNoise.Value * (TICK_INTERVAL / 0.015f))
+	if (af.m_iAngleCount != 3 || !af.m_aAngles[0].m_bAttacking && !af.m_aAngles[1].m_bAttacking && !af.m_aAngles[2].m_bAttacking
+		|| Math::CalcFov(af.m_aAngles[0].m_vAngle, af.m_aAngles[1].m_vAngle) < Vars::CheatDetection::MinFlick.Value
+		|| Math::CalcFov(af.m_aAngles[0].m_vAngle, af.m_aAngles[2].m_vAngle) > Vars::CheatDetection::MaxNoise.Value * (TICK_INTERVAL / 0.015f))
 		return false;
 
-	vAngles.clear();
+	af.m_iAngleCount = 0;
 	return true;
 }
 
 bool CCheatDetection::IsDuckSpeed(CTFPlayer* pEntity)
 {
+	auto& ds = mData[pEntity].m_DuckSpeed;
 	if (!(Vars::CheatDetection::Methods.Value & Vars::CheatDetection::MethodsEnum::DuckSpeed)
 		|| !pEntity->IsDucking() || !pEntity->IsOnGround()
 		|| pEntity->m_vecVelocity().Length2D() < pEntity->m_flMaxspeed() * 0.5f)
 	{
-		mData[pEntity].m_DuckSpeed.m_iStartTick = 0;
+		ds.m_iStartTick = 0;
 		return false;
 	}
 
-	if (!mData[pEntity].m_DuckSpeed.m_iStartTick)
-		mData[pEntity].m_DuckSpeed.m_iStartTick = I::GlobalVars->tickcount;
+	if (!ds.m_iStartTick)
+		ds.m_iStartTick = I::GlobalVars->tickcount;
 
-	if (I::GlobalVars->tickcount - mData[pEntity].m_DuckSpeed.m_iStartTick > TIME_TO_TICKS(1))
+	if (I::GlobalVars->tickcount - ds.m_iStartTick > TIME_TO_TICKS(1))
 	{
-		mData[pEntity].m_DuckSpeed.m_iStartTick = 0;
+		ds.m_iStartTick = 0;
 		return true;
 	}
 
@@ -80,18 +84,19 @@ bool CCheatDetection::IsDuckSpeed(CTFPlayer* pEntity)
 
 void CCheatDetection::Infract(CTFPlayer* pEntity, const char* sReason)
 {
+	auto& info = mData[pEntity];
 	bool bMark = false;
 	if (Vars::CheatDetection::DetectionsRequired.Value)
 	{
-		mData[pEntity].m_iDetections++;
-		bMark = mData[pEntity].m_iDetections >= Vars::CheatDetection::DetectionsRequired.Value;
+		info.m_iDetections++;
+		bMark = info.m_iDetections >= Vars::CheatDetection::DetectionsRequired.Value;
 	}
 
-	F::Output.CheatDetection(mData[pEntity].m_sName, bMark ? "marked" : "infracted", sReason);
+	F::Output.CheatDetection(info.m_sName, bMark ? "marked" : "infracted", sReason);
 	if (bMark)
 	{
-		mData[pEntity].m_iDetections = 0;
-		F::PlayerUtils.AddTag(mData[pEntity].m_uAccountID, F::PlayerUtils.TagToIndex(CHEATER_TAG), true, mData[pEntity].m_sName);
+		info.m_iDetections = 0;
+		F::PlayerUtils.AddTag(info.m_uAccountID, F::PlayerUtils.TagToIndex(CHEATER_TAG), true, info.m_sName);
 	}
 }
 
@@ -111,17 +116,22 @@ void CCheatDetection::Run()
 		if (!H::Entities.GetDeltaTime(iIndex))
 			continue;
 
-		if (iIndex == I::EngineClient->GetLocalPlayer() || !pPlayer->IsAlive() || pPlayer->IsAGhost()
+		if (iIndex == H::Entities.GetLocalPlayerIndex() || !pPlayer->IsAlive() || pPlayer->IsAGhost()
 			|| pResource->IsFakePlayer(iIndex) || F::PlayerUtils.HasTag(iIndex, F::PlayerUtils.TagToIndex(CHEATER_TAG)))
 		{
-			mData[pPlayer].m_PacketChoking = {};
-			mData[pPlayer].m_AimFlicking = {};
-			mData[pPlayer].m_DuckSpeed = {};
+			auto& info = mData[pPlayer];
+			if (info.m_PacketChoking.m_iChokeCount | info.m_AimFlicking.m_iAngleCount | info.m_DuckSpeed.m_iStartTick)
+			{
+				info.m_PacketChoking = {};
+				info.m_AimFlicking = {};
+				info.m_DuckSpeed = {};
+			}
 			continue;
 		}
 
-		mData[pPlayer].m_uAccountID = pResource->m_iAccountID(iIndex);
-		mData[pPlayer].m_sName = F::PlayerUtils.GetPlayerName(iIndex, pResource->GetName(iIndex));
+		auto& info = mData[pPlayer];
+		info.m_uAccountID = pResource->m_iAccountID(iIndex);
+		info.m_sName = F::PlayerUtils.GetPlayerName(iIndex, pResource->GetName(iIndex));
 
 		if (InvalidPitch(pPlayer))
 			Infract(pPlayer, "invalid pitch");
@@ -141,22 +151,27 @@ void CCheatDetection::Reset()
 
 void CCheatDetection::ReportChoke(CTFPlayer* pEntity, int iChoke)
 {
+	auto& pc = mData[pEntity].m_PacketChoking;
 	if (Vars::CheatDetection::Methods.Value & Vars::CheatDetection::MethodsEnum::PacketChoking)
 	{
-		mData[pEntity].m_PacketChoking.m_vChokes.push_back(iChoke);
-		if (mData[pEntity].m_PacketChoking.m_vChokes.size() == 3)
+		pc.m_iChokes[2] = pc.m_iChokes[1];
+		pc.m_iChokes[1] = pc.m_iChokes[0];
+		pc.m_iChokes[0] = iChoke;
+		if (pc.m_iChokeCount < 3)
+			pc.m_iChokeCount++;
+		if (pc.m_iChokeCount == 3)
 		{
-			mData[pEntity].m_PacketChoking.m_bInfract = true; // check for last 3 choke amounts
-			for (auto& iChoke : mData[pEntity].m_PacketChoking.m_vChokes)
+			pc.m_bInfract = true; // check for last 3 choke amounts
+			for (auto iVal : pc.m_iChokes)
 			{
-				if (iChoke < Vars::CheatDetection::MinChoking.Value)
-					mData[pEntity].m_PacketChoking.m_bInfract = false;
+				if (iVal < Vars::CheatDetection::MinChoking.Value)
+					pc.m_bInfract = false;
 			}
-			mData[pEntity].m_PacketChoking.m_vChokes.clear();
+			pc.m_iChokeCount = 0;
 		}
 	}
 	else
-		mData[pEntity].m_PacketChoking.m_vChokes.clear();
+		pc.m_iChokeCount = 0;
 }
 
 void CCheatDetection::ReportDamage(IGameEvent* pEvent)
@@ -165,7 +180,7 @@ void CCheatDetection::ReportDamage(IGameEvent* pEvent)
 		return;
 
 	int iIndex = I::EngineClient->GetPlayerForUserID(pEvent->GetInt("attacker"));
-	if (iIndex == I::EngineClient->GetLocalPlayer())
+	if (iIndex == H::Entities.GetLocalPlayerIndex())
 		return;
 
 	auto pEntity = I::ClientEntityList->GetClientEntity(iIndex)->As<CTFPlayer>();
@@ -180,7 +195,7 @@ void CCheatDetection::ReportDamage(IGameEvent* pEvent)
 		return;
 	}
 
-	auto& vAngles = mData[pEntity].m_AimFlicking.m_vAngles;
-	if (!vAngles.empty())
-		vAngles.back().m_bAttacking = true;
+	auto& af = mData[pEntity].m_AimFlicking;
+	if (af.m_iAngleCount > 0)
+		af.m_aAngles[af.m_iAngleCount - 1].m_bAttacking = true;
 }

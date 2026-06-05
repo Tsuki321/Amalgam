@@ -677,13 +677,24 @@ void CVisuals::FOV(CTFPlayer* pLocal, CViewSetup* pView)
 	static auto default_fov = H::ConVars.FindVar("default_fov");
 	bool bZoomed = pLocal->InCond(TF_COND_ZOOMED);
 
-	float flRegularFOV = fov_desired->GetFloat();
-	float flZoomFOV = TF_WEAPON_ZOOM_FOV;
-
 	float flRegularOverride = Vars::Visuals::UI::FieldOfView.Value;
 	float flZoomOverride = Vars::Visuals::UI::ZoomFieldOfView.Value;
 	if (SDK::CleanScreenshot())
 		flRegularOverride = flZoomOverride = 0.f;
+
+	if (!flRegularOverride && !flZoomOverride)
+	{
+		G::FOV = pView->fov;
+		if (pLocal->IsAlive())
+		{
+			pLocal->m_iFOV() = ceilf(pView->fov);
+			pLocal->m_iDefaultFOV() = pView->fov;
+		}
+		return;
+	}
+
+	float flRegularFOV = fov_desired->GetFloat();
+	float flZoomFOV = TF_WEAPON_ZOOM_FOV;
 
 	if (flRegularOverride || flZoomOverride)
 	{
@@ -701,14 +712,14 @@ void CVisuals::FOV(CTFPlayer* pLocal, CViewSetup* pView)
 					pView->fov = Math::SimpleSplineRemapVal(flDeltaTime, 0.f, 1.f, flFrom, flTo);
 			}
 		}
-	}
 
-	G::FOV = pView->fov;
-	if (pLocal->IsAlive())
-	{
-		pLocal->m_iFOV() = ceilf(pView->fov);
-		pLocal->m_iDefaultFOV() = ceilf(std::max(flRegularOverride, flRegularFOV));
-		default_fov->SetValue(pLocal->m_iDefaultFOV());
+		G::FOV = pView->fov;
+		if (pLocal->IsAlive())
+		{
+			pLocal->m_iFOV() = ceilf(pView->fov);
+			pLocal->m_iDefaultFOV() = ceilf(std::max(flRegularOverride, flRegularFOV));
+			default_fov->SetValue(pLocal->m_iDefaultFOV());
+		}
 	}
 }
 
@@ -728,7 +739,8 @@ void CVisuals::ThirdPerson(CTFPlayer* pLocal, CViewSetup* pView)
 	pLocal->ThirdPersonSwitch();
 
 	static auto cam_ideallag = H::ConVars.FindVar("cam_ideallag");
-	cam_ideallag->SetValue(0.f);
+	if (cam_ideallag->GetFloat() != 0.f)
+		cam_ideallag->SetValue(0.f);
 
 	if (I::Input->CAM_IsThirdPerson())
 	{	// thirdperson offset
@@ -1241,6 +1253,8 @@ void CVisuals::CreateMove(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 
 void CVisuals::LocalAnimations(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 {
+	if (m_vAngles.capacity() < 24)
+		m_vAngles.reserve(24);
 	m_vAngles.push_back(pCmd->viewangles);
 
 	auto pAnimState = pLocal->m_PlayerAnimState();

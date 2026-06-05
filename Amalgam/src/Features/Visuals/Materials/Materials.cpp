@@ -293,15 +293,14 @@ Material_t* CMaterials::GetMaterial(uint32_t uHash)
 	if (uHash == FNV1A::Hash32Const("Original"))
 		return nullptr;
 
-	return m_mMaterials.contains(uHash) ? &m_mMaterials[uHash] : nullptr;
+	auto it = m_mMaterials.find(uHash);
+	return it == m_mMaterials.end() ? nullptr : &it->second;
 }
 
 std::string CMaterials::GetVMT(uint32_t uHash)
 {
-	if (m_mMaterials.contains(uHash))
-		return m_mMaterials[uHash].m_sVMT;
-
-	return "";
+	auto it = m_mMaterials.find(uHash);
+	return it == m_mMaterials.end() ? std::string() : it->second.m_sVMT;
 }
 
 void CMaterials::AddMaterial(const char* sName)

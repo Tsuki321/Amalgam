@@ -16,13 +16,15 @@ struct PlayerInfo
 
 	struct PacketChoking_t
 	{
-		std::deque<int> m_vChokes = {}; // store last 3 choke counts
+		int m_iChokes[3] = {};
+		uint8_t m_iChokeCount = 0;
 		bool m_bInfract = false; // infract the user for choking?
 	} m_PacketChoking;
 
 	struct AimFlicking_t
 	{
-		std::deque<AngleHistory_t> m_vAngles = {}; // store last 3 angles & if damage was dealt
+		AngleHistory_t m_aAngles[3] = {};
+		uint8_t m_iAngleCount = 0;
 	} m_AimFlicking;
 					
 	struct DuckSpeed_t

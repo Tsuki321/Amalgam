@@ -265,10 +265,23 @@ void CMisc::WeaponSway()
 {
 	static auto cl_wpn_sway_interp = H::ConVars.FindVar("cl_wpn_sway_interp");
 	static auto cl_wpn_sway_scale = H::ConVars.FindVar("cl_wpn_sway_scale");
+	static float flLastInterp = 0.f, flLastScale = 0.f;
+	static bool bLastSway = false;
 
 	bool bSway = Vars::Visuals::Viewmodel::SwayInterp.Value || Vars::Visuals::Viewmodel::SwayScale.Value;
-	cl_wpn_sway_interp->SetValue(bSway ? Vars::Visuals::Viewmodel::SwayInterp.Value : 0.f);
-	cl_wpn_sway_scale->SetValue(bSway ? Vars::Visuals::Viewmodel::SwayScale.Value : 0.f);
+	float flInterp = bSway ? Vars::Visuals::Viewmodel::SwayInterp.Value : 0.f;
+	float flScale = bSway ? Vars::Visuals::Viewmodel::SwayScale.Value : 0.f;
+	if (flInterp != flLastInterp || bSway != bLastSway)
+	{
+		cl_wpn_sway_interp->SetValue(flInterp);
+		flLastInterp = flInterp;
+	}
+	if (flScale != flLastScale || bSway != bLastSway)
+	{
+		cl_wpn_sway_scale->SetValue(flScale);
+		flLastScale = flScale;
+	}
+	bLastSway = bSway;
 }
 
 
@@ -449,7 +462,8 @@ int CMisc::AntiBackstab(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 	if (!Vars::Misc::Automation::AntiBackstab.Value || !bSendPacket || G::Attacking == 1 || !pLocal || pLocal->m_MoveType() != MOVETYPE_WALK || pLocal->InCond(TF_COND_HALLOWEEN_KART))
 		return 0;
 
-	std::vector<std::pair<Vec3, CBaseEntity*>> vTargets = {};
+	static std::vector<std::pair<Vec3, CBaseEntity*>> vTargets = {};
+	vTargets.clear();
 	for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerEnemy))
 	{
 		auto pPlayer = pEntity->As<CTFPlayer>();
@@ -468,7 +482,7 @@ int CMisc::AntiBackstab(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 		Vec3 vTargetPos1 = pPlayer->GetCenter();
 		Vec3 vTargetPos2 = vTargetPos1 + pPlayer->m_vecVelocity() * F::Backtrack.GetReal();
 		float flDistance = std::max(std::max(SDK::MaxSpeed(pPlayer), SDK::MaxSpeed(pLocal)), pPlayer->m_vecVelocity().Length());
-		float flDistanceSqr = powf(flDistance, 2);
+		float flDistanceSqr = flDistance * flDistance;
 		if ((vLocalPos.DistToSqr(vTargetPos1) > flDistanceSqr || !SDK::VisPosWorld(pLocal, pPlayer, vLocalPos, vTargetPos1))
 			&& (vLocalPos.DistToSqr(vTargetPos2) > flDistanceSqr || !SDK::VisPosWorld(pLocal, pPlayer, vLocalPos, vTargetPos2)))
 			continue;
@@ -478,9 +492,10 @@ int CMisc::AntiBackstab(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket)
 	if (vTargets.empty())
 		return 0;
 
+	Vec3 vLocalCenter = pLocal->GetCenter();
 	std::sort(vTargets.begin(), vTargets.end(), [&](const auto& a, const auto& b) -> bool
 	{
-		return pLocal->GetCenter().DistToSqr(a.first) < pLocal->GetCenter().DistToSqr(b.first);
+		return a.first.DistToSqr(vLocalCenter) < b.first.DistToSqr(vLocalCenter);
 	});
 
 	auto& pTargetPos = vTargets.front();
