@@ -9,7 +9,7 @@ MAKE_HOOK(CMaterial_Uncache, S::CMaterial_Uncache(), void,
 {
 	DEBUG_RETURN(CMaterial_Uncache, rcx, bPreserveVars);
 
-	if (F::Materials.m_mMatList.contains(rcx))
+	if (std::find(F::Materials.m_vMatList.begin(), F::Materials.m_vMatList.end(), rcx) != F::Materials.m_vMatList.end())
 		return;
 
 	CALL_ORIGINAL(rcx, bPreserveVars);
