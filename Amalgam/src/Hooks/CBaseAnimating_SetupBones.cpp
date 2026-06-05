@@ -18,7 +18,7 @@ MAKE_HOOK(CBaseAnimating_SetupBones, S::CBaseAnimating_SetupBones(), bool,
 
 	auto pOwner = pAnimating->GetRootMoveParent();
 	auto pEntity = pOwner ? pOwner : pAnimating;
-	if (!pEntity->IsPlayer() || pEntity->entindex() == I::EngineClient->GetLocalPlayer())
+	if (!pEntity->IsPlayer() || pEntity->entindex() == H::Entities.GetLocalPlayerIndex())
 		return CALL_ORIGINAL(rcx, pBoneToWorldOut, nMaxBones, boneMask, currentTime);
 
 	if (pBoneToWorldOut)

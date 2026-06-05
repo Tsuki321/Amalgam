@@ -86,6 +86,7 @@ void CChams::DrawModel(CBaseEntity* pEntity, Chams_t& tChams, IMatRenderContext*
 		pRenderContext->DepthRange(0.f, 1.f);
 
 		m_mEntities[pEntity->entindex()];
+		m_bEntities.set(pEntity->entindex());
 	}
 	End();
 }

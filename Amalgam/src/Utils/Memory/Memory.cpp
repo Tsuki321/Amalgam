@@ -2,6 +2,7 @@
 
 #include <format>
 #include <Psapi.h>
+#include <immintrin.h>
 
 std::vector<byte> CMemory::PatternToByte(const char* szPattern)
 {
@@ -59,18 +60,62 @@ uintptr_t CMemory::FindSignature(const char* szModule, const char* szPattern)
 		const auto iPatternSize = vPattern.size();
 		const int* iPatternBytes = vPattern.data();
 
+		if (!iPatternSize)
+			return 0x0;
+
 		const auto pImageBytes = reinterpret_cast<byte*>(hModule);
 
-		// Now loop through all bytes and check if the byte sequence matches
-		for (auto i = 0ul; i < dwImageSize - iPatternSize; ++i)
+		// SIMD first-byte prefilter: collect candidate offsets in 16-byte chunks
+		// and only do the expensive full pattern check at those offsets.
+		const byte firstByte = iPatternBytes[0] == -1 ? 0 : byte(iPatternBytes[0]);
+		const bool bFirstWild = iPatternBytes[0] == -1;
+
+		std::vector<size_t> candidates;
+		candidates.reserve(64);
+
+		const size_t dwScanLimit = dwImageSize > iPatternSize ? dwImageSize - iPatternSize : 0;
+
+		if (bFirstWild)
+		{
+			for (size_t i = 0; i < dwScanLimit; ++i)
+				candidates.push_back(i);
+		}
+		else
+		{
+			const __m128i needle = _mm_set1_epi8(char(firstByte));
+			size_t i = 0;
+			const size_t dwSimdEnd = dwScanLimit >= 16 ? dwScanLimit - 16 : 0;
+			for (; i < dwSimdEnd; i += 16)
+			{
+				const __m128i chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pImageBytes + i));
+				const int mask = _mm_movemask_epi8(_mm_cmpeq_epi8(chunk, needle));
+				if (!mask)
+					continue;
+				for (int k = 0; k < 16; ++k)
+				{
+					if (mask & (1 << k))
+					{
+						const size_t offset = i + k;
+						if (offset < dwScanLimit)
+							candidates.push_back(offset);
+					}
+				}
+			}
+			for (; i < dwScanLimit; ++i)
+			{
+				if (pImageBytes[i] == firstByte)
+					candidates.push_back(i);
+			}
+		}
+
+		// Now loop through all candidates and check if the full byte sequence matches
+		for (auto i : candidates)
 		{
 			auto bFound = true;
 
-			// Go through all bytes from the signature and check if it matches
-			for (auto j = 0ul; j < iPatternSize; ++j)
+			for (size_t j = 0; j < iPatternSize; ++j)
 			{
-				if (pImageBytes[i + j] != iPatternBytes[j] // Bytes don't match
-					&& iPatternBytes[j] != -1)             // Byte isn't a wildcard either
+				if (pImageBytes[i + j] != iPatternBytes[j] && iPatternBytes[j] != -1)
 				{
 					bFound = false;
 					break;

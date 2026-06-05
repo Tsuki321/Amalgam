@@ -27,12 +27,14 @@ MAKE_HOOK(IVModelRender_DrawModelExecute, U::Memory.GetVirtual(I::ModelRender, 1
 		return;
 
 	auto pEntity = I::ClientEntityList->GetClientEntity(pInfo.entity_index);
-	auto pRenderContext = I::MaterialSystem->GetRenderContext();
-	if (pEntity && pRenderContext && pEntity->GetClassID() == ETFClassID::CTFViewModel)
+	if (pEntity && pEntity->GetClassID() == ETFClassID::CTFViewModel)
 	{
-		F::Glow.RenderViewmodel(pState, pInfo, pBoneToWorld);
-		if (F::Chams.RenderViewmodel(pState, pInfo, pBoneToWorld))
-			return;
+		if (auto pRenderContext = I::MaterialSystem->GetRenderContext())
+		{
+			F::Glow.RenderViewmodel(pState, pInfo, pBoneToWorld);
+			if (F::Chams.RenderViewmodel(pState, pInfo, pBoneToWorld))
+				return;
+		}
 	}
 
 	CALL_ORIGINAL(rcx, pState, pInfo, pBoneToWorld);

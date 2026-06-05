@@ -27,9 +27,16 @@ MAKE_HOOK(CTFPlayer_FireBullet, S::CTFPlayer_FireBullet(), void,
 	filter.pSkip = pLocal;
 	SDK::Trace(vStart, vEnd, MASK_SHOT | CONTENTS_GRATE, &filter, &trace);
 
-	int iIndex = I::EngineClient->GetLocalPlayer();
+	int iIndex = H::Entities.GetLocalPlayerIndex();
 	int iTeam = pLocal->m_iTeamNum();
-	int iAttachment = pWeapon->LookupAttachment("muzzle");
+	static CBaseCombatWeapon* pCachedWeapon = nullptr;
+	static int iMuzzleAttachment = 0;
+	if (pWeapon != pCachedWeapon)
+	{
+		iMuzzleAttachment = pWeapon->LookupAttachment("muzzle");
+		pCachedWeapon = pWeapon;
+	}
+	int iAttachment = iMuzzleAttachment;
 	pWeapon->GetAttachment(iAttachment, trace.startpos);
 
 	switch (uHash)

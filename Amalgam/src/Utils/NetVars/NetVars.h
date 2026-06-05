@@ -1,15 +1,24 @@
 #pragma once
 #include "../Macros/Macros.h"
 #include "../../SDK/Definitions/Misc/dt_recv.h"
+#include <unordered_map>
+#include <cstdint>
 
 class CNetVars
 {
 public:
+	void Init();
 	int GetOffset(RecvTable* pTable, const char* szNetVar);
 	int GetNetVar(const char* szClass, const char* szNetVar);
 
 	RecvProp* GetProp(RecvTable* pTable, const char* szNetVar);
 	RecvProp* GetNetProp(const char* szClass, const char* szNetVar);
+
+private:
+	void BuildTable(RecvTable* pTable, int nBaseOffset = 0);
+
+	std::unordered_map<uint64_t, int> m_mOffsets;
+	std::unordered_map<uint64_t, RecvProp*> m_mProps;
 };
 
 ADD_FEATURE_CUSTOM(CNetVars, NetVars, U);

@@ -4,8 +4,10 @@ MAKE_SIGNATURE(RecvProxy_SimulationTime, "client.dll", "48 89 5C 24 ? 57 48 83 E
 
 static inline int GetNetworkBase(int nTick, int nEntity)
 {
-	int nEntityMod = nEntity % I::GlobalVars->nTimestampRandomizeWindow;
-	int nBaseTick = I::GlobalVars->nTimestampNetworkingBase * int((nTick - nEntityMod) / I::GlobalVars->nTimestampNetworkingBase);
+	static int nTimestampRandomizeWindow = I::GlobalVars->nTimestampRandomizeWindow;
+	static int nTimestampNetworkingBase = I::GlobalVars->nTimestampNetworkingBase;
+	int nEntityMod = nEntity % nTimestampRandomizeWindow;
+	int nBaseTick = nTimestampNetworkingBase * int((nTick - nEntityMod) / nTimestampNetworkingBase);
 	return nBaseTick;
 }
 
@@ -15,7 +17,7 @@ MAKE_HOOK(RecvProxy_SimulationTime, S::RecvProxy_SimulationTime(), void,
 	DEBUG_RETURN(RecvProxy_SimulationTime, pData, pStruct, pOut);
 
 	auto pEntity = reinterpret_cast<CBaseEntity*>(pStruct);
-	if (!pEntity || !pEntity->IsPlayer() || pEntity->entindex() == I::EngineClient->GetLocalPlayer())
+	if (!pEntity || !pEntity->IsPlayer() || pEntity->entindex() == H::Entities.GetLocalPlayerIndex())
 		return CALL_ORIGINAL(pData, pStruct, pOut);
 
 	if (!pData->m_Value.m_Int) // fix setting invalid simtime every 100 ticks if choking

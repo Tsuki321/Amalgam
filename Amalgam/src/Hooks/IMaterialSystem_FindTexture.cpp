@@ -7,8 +7,9 @@ MAKE_HOOK(IMaterialSystem_FindTexture, U::Memory.GetVirtual(I::MaterialSystem, 7
 
 	auto pReturn = CALL_ORIGINAL(rcx, pTextureName, pTextureGroupName, complain, nAdditionalCreationFlags);
 
+	static auto uFlatHash = FNV1A::Hash32Const("Flat");
 	auto uHash = FNV1A::Hash32(Vars::Visuals::World::WorldTexture.Value.c_str());
-	if (uHash == FNV1A::Hash32Const("Flat"))
+	if (uHash == uFlatHash)
 	{
 		auto fOverrideTexture = [&]()
 		{

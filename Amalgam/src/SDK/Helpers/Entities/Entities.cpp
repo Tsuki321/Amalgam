@@ -17,12 +17,13 @@ void CEntities::Store()
 
 	m_pLocal = pLocal->As<CTFPlayer>();
 	m_pLocalWeapon = m_pLocal->m_hActiveWeapon()->As<CTFWeaponBase>();
+	m_iLocalPlayerIndex = m_pLocal->entindex();
 
 	int iLag;
 	{
-		static int iStaticTickcout = I::GlobalVars->tickcount;
-		iLag = I::GlobalVars->tickcount - iStaticTickcout - 1;
-		iStaticTickcout = I::GlobalVars->tickcount;
+		static int iStaticTickCount = I::GlobalVars->tickcount;
+		iLag = I::GlobalVars->tickcount - iStaticTickCount - 1;
+		iStaticTickCount = I::GlobalVars->tickcount;
 	}
 
 	for (int n = I::EngineClient->GetMaxClients() + 1; n <= I::ClientEntityList->GetHighestEntityIndex(); n++)
@@ -326,6 +327,7 @@ void CEntities::Clear(bool bShutdown)
 	m_pLocal = nullptr;
 	m_pLocalWeapon = nullptr;
 	m_pPlayerResource = nullptr;
+	m_iLocalPlayerIndex = 0;
 	m_aGroups = {};
 
 	if (bShutdown)
@@ -497,14 +499,26 @@ bool CEntities::IsSpellbook(uint32_t uHash)
 
 CTFPlayer* CEntities::GetLocal()
 {
-	return I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer())->As<CTFPlayer>();
-	//return m_pLocal;
+	if (m_pLocal && m_iLocalPlayerIndex == I::EngineClient->GetLocalPlayer())
+		return m_pLocal;
+
+	m_pLocal = I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer())->As<CTFPlayer>();
+	if (m_pLocal)
+		m_iLocalPlayerIndex = m_pLocal->entindex();
+	return m_pLocal;
 }
 CTFWeaponBase* CEntities::GetWeapon()
 {
-	auto pLocal = GetLocal();
-	return pLocal ? pLocal->m_hActiveWeapon()->As<CTFWeaponBase>() : nullptr;
-	//return m_pLocalWeapon;
+	if (auto pLocal = GetLocal())
+	{
+		auto& hActive = pLocal->m_hActiveWeapon();
+		if (m_pLocalWeapon && m_pLocalWeapon->GetRefEHandle().m_Index == hActive.m_Index)
+			return m_pLocalWeapon;
+
+		m_pLocalWeapon = hActive.As<CTFWeaponBase>();
+		return m_pLocalWeapon;
+	}
+	return nullptr;
 }
 CTFPlayerResource* CEntities::GetResource()
 {

@@ -122,6 +122,11 @@ public:
 	NETVAR(m_nPlayerCondEx2, int, "CTFPlayer", "m_nPlayerCondEx2");
 	NETVAR(m_nPlayerCondEx3, int, "CTFPlayer", "m_nPlayerCondEx3");
 	NETVAR(m_nStreaks, void*, "CTFPlayer", "m_nStreaks");
+	int& m_nStreaks(int index)
+	{
+		static int nOffset = U::NetVars.GetNetVar("CTFPlayer", "m_nStreaks");
+		return (&(*reinterpret_cast<int*>(uintptr_t(this) + nOffset)))[index];
+	}
 	NETVAR(m_unTauntSourceItemID_Low, int, "CTFPlayer", "m_unTauntSourceItemID_Low");
 	NETVAR(m_unTauntSourceItemID_High, int, "CTFPlayer", "m_unTauntSourceItemID_High");
 	NETVAR(m_flRuneCharge, float, "CTFPlayer", "m_flRuneCharge");

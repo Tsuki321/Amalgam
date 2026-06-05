@@ -15,9 +15,9 @@ MAKE_HOOK(CParticleProperty_Create_Name, S::CParticleProperty_Create_Name(), voi
     DEBUG_RETURN(CParticleProperty_Create_Name, rcx, pszParticleName, iAttachType, pszAttachmentName);
 
     const auto dwRetAddr = uintptr_t(_ReturnAddress());
-    const auto dwUpdateEffects1 = S::CWeaponMedigun_UpdateEffects_CreateName_Call1();
-    const auto dwUpdateEffects2 = S::CWeaponMedigun_UpdateEffects_CreateName_Call2();
-    const auto dwManageChargeEffect = S::CWeaponMedigun_ManageChargeEffect_CreateName_Call();
+    static const auto dwUpdateEffects1 = S::CWeaponMedigun_UpdateEffects_CreateName_Call1();
+    static const auto dwUpdateEffects2 = S::CWeaponMedigun_UpdateEffects_CreateName_Call2();
+    static const auto dwManageChargeEffect = S::CWeaponMedigun_ManageChargeEffect_CreateName_Call();
 
     bool bUpdateEffects = dwRetAddr == dwUpdateEffects1 || dwRetAddr == dwUpdateEffects2, bManageChargeEffect = dwRetAddr == dwManageChargeEffect;
     if (bUpdateEffects || bManageChargeEffect)
@@ -25,12 +25,6 @@ MAKE_HOOK(CParticleProperty_Create_Name, S::CParticleProperty_Create_Name(), voi
         auto pLocal = H::Entities.GetLocal();
         if (!pLocal)
             return CALL_ORIGINAL(rcx, pszParticleName, iAttachType, pszAttachmentName);
-
-        /* // probably not needed
-        auto pWeapon = pLocal->GetWeaponFromSlot(SLOT_SECONDARY);
-        if (!pWeapon || pWeapon->GetWeaponID() != TF_WEAPON_MEDIGUN)
-            return CALL_ORIGINAL(rcx, pszParticleName, iAttachType, pszAttachmentName);
-        */
 
         auto pModel = pLocal->GetRenderedWeaponModel();
         if (!pModel || rcx != pModel->m_Particles())
@@ -99,13 +93,13 @@ MAKE_HOOK(CParticleProperty_Create_Point, S::CParticleProperty_Create_Point(), v
     {
         switch (FNV1A::Hash32(pszParticleName))
         {
-        case FNV1A::Hash32Const("kart_impact_sparks"):
+        case s_uKartImpactHash:
             if (I::Prediction->InPrediction() && !I::Prediction->m_bFirstTimePredicted)
                 return nullptr;
         }
     }
 
-    if (FNV1A::Hash32(Vars::Visuals::Effects::ProjectileTrail.Value.c_str()) != FNV1A::Hash32Const("Default") && pszParticleName)
+    if (FNV1A::Hash32(Vars::Visuals::Effects::ProjectileTrail.Value.c_str()) != s_uDefaultHash && pszParticleName)
     {
         switch (FNV1A::Hash32(pszParticleName))
         {

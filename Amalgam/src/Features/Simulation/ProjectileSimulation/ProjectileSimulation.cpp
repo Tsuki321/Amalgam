@@ -364,7 +364,7 @@ void CProjectileSimulation::GetInfo(CBaseEntity* pProjectile, ProjectileInfo& tP
 
 	tProjInfo.m_pOwner = paEntities.second;
 	tProjInfo.m_pWeapon = paEntities.first;
-	tProjInfo.m_uType = FNV1A::Hash32(I::ModelInfoClient->GetModelName(pProjectile->GetModel()));
+	tProjInfo.m_uType = H::Entities.GetModel(pProjectile->entindex());
 
 	tProjInfo.m_vPos = pProjectile->m_vecOrigin();
 	tProjInfo.m_vAng = Math::VectorAngles(vVelocity);

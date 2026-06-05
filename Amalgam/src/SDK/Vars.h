@@ -536,6 +536,7 @@ NAMESPACE_BEGIN(Vars)
 			CVar(ScoreboardUtility, "Scoreboard utility", false);
 			CVar(ScoreboardColors, "Scoreboard colors", false, VISUAL);
 			CVar(CleanScreenshots, "Clean screenshots", true);
+			CVar(KillstreakWeapons, "Killstreak weapons", false);
 		NAMESPACE_END(UI)
 
 		NAMESPACE_BEGIN(Thirdperson)

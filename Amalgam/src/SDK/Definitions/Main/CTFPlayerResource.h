@@ -48,4 +48,10 @@ public:
 	NETVAR_ARRAY(m_iPlayerClassWhenKilled, int, "CTFPlayerResource", "m_iPlayerClassWhenKilled");
 	NETVAR_ARRAY(m_iConnectionState, int, "CTFPlayerResource", "m_iConnectionState");
 	NETVAR_ARRAY(m_flConnectTime, float, "CTFPlayerResource", "m_flConnectTime");
+
+	void SetStreak(int iPlayerIndex, int iStreakType, int iStreak)
+	{
+		static int nOffset = U::NetVars.GetNetVar("CTFPlayerResource", "m_iStreaks");
+		*reinterpret_cast<int*>(uintptr_t(this) + nOffset + iPlayerIndex * kTFStreak_COUNT + iStreakType) = iStreak;
+	}
 };

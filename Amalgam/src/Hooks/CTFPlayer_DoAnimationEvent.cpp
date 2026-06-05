@@ -8,7 +8,7 @@ MAKE_HOOK(CTFPlayer_DoAnimationEvent, S::CTFPlayer_DoAnimationEvent(), void,
 	DEBUG_RETURN(CTFPlayer_DoAnimationEvent, rcx, event, nData);
 
 	auto pPlayer = reinterpret_cast<CTFPlayer*>(rcx);
-	if (pPlayer->entindex() != I::EngineClient->GetLocalPlayer())
+	if (pPlayer->entindex() != H::Entities.GetLocalPlayerIndex())
 		return;
 
 	CALL_ORIGINAL(rcx, event, nData);

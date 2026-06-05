@@ -1131,6 +1131,7 @@ void CMenu::MenuVisuals(int iTab)
 					FToggle(Vars::Visuals::UI::ScoreboardUtility, FToggleEnum::Right);
 					FToggle(Vars::Visuals::UI::ScoreboardColors, FToggleEnum::Left);
 					FToggle(Vars::Visuals::UI::CleanScreenshots, FToggleEnum::Right);
+					FToggle(Vars::Visuals::UI::KillstreakWeapons, FToggleEnum::Left);
 				} EndSection();
 				if (Section("Thirdperson", 8))
 				{

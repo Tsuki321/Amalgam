@@ -38,6 +38,7 @@ public:
 	std::unordered_mapset<IMaterial*> m_mMatList = {};
 
 	bool m_bLoaded = false;
+	bool m_bReloadPending = false;
 };
 
 ADD_FEATURE(CMaterials, Materials);
