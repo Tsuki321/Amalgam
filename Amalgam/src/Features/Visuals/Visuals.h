@@ -45,6 +45,8 @@ private:
 	std::vector<Sightline_t> m_vSightLines = {};
 	std::vector<PickupData_t> m_vPickups = {};
 	std::vector<Vec3> m_vAngles = {};
+	std::unordered_mapset<CBaseEntity*> m_mStoreProjectiles = {};
+	std::unordered_map<IClientEntity*, Vec3> m_mStoreDots = {};
 
 #ifdef DEBUG_TEXT
 	std::vector<DebugText_t> m_vDebugText = {};

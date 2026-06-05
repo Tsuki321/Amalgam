@@ -20,8 +20,9 @@ void CChams::End()
 
 void CChams::DrawModel(CBaseEntity* pEntity, Chams_t& tChams, IMatRenderContext* pRenderContext, bool bTwoModels)
 {
-	const auto& vVisibleMaterials = !tChams.Visible.empty() ? tChams.Visible : std::vector<std::pair<std::string, Color_t>> { { "None", {} } };
-	const auto& vOccludedMaterials = !tChams.Occluded.empty() ? tChams.Occluded : std::vector<std::pair<std::string, Color_t>> { { "None", {} } };
+	static const std::vector<std::pair<std::string, Color_t>> vNoneFallback = { { "None", {} } };
+	const auto& vVisibleMaterials = !tChams.Visible.empty() ? tChams.Visible : vNoneFallback;
+	const auto& vOccludedMaterials = !tChams.Occluded.empty() ? tChams.Occluded : vNoneFallback;
 
 	Begin();
 	if (bTwoModels)

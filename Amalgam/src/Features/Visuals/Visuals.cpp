@@ -869,7 +869,7 @@ void CVisuals::Store()
 	Group_t* pGroup;
 
 	{
-		std::unordered_mapset<CBaseEntity*> mProjectiles = {};
+		m_mStoreProjectiles.clear();
 
 		for (auto pEntity : H::Entities.GetGroup(EntityEnum::WorldProjectile))
 		{
@@ -961,24 +961,25 @@ void CVisuals::Store()
 
 		for (auto& pEntity : m_mProjectiles | std::views::keys)
 		{
-			if (!mProjectiles.contains(pEntity))
+			if (!m_mStoreProjectiles.contains(pEntity))
 				m_mProjectiles.erase(pEntity);
 		}
 	}
 
 	{
-		std::unordered_map<IClientEntity*, Vec3> mDots = {};
+		m_mStoreDots.clear();
 
 		for (auto pEntity : H::Entities.GetGroup(EntityEnum::SniperDots))
 		{
 			if (auto pOwner = pEntity->m_hOwnerEntity().Get())
-				mDots[pOwner] = pEntity->m_vecOrigin();
+				m_mStoreDots[pOwner] = pEntity->m_vecOrigin();
 		}
 
+		int iLocalIdx = H::Entities.GetLocalPlayerIndex();
 		for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 		{
 			auto pPlayer = pEntity->As<CTFPlayer>();
-			if (pPlayer->entindex() == I::EngineClient->GetLocalPlayer() || pPlayer->IsDormant()
+			if (pPlayer->entindex() == iLocalIdx || pPlayer->IsDormant()
 				|| !F::Groups.GetGroup(pEntity, pGroup, false) || !(pGroup->m_iSightlines & SightlinesEnum::Enabled))
 				continue;
 
@@ -989,7 +990,7 @@ void CVisuals::Store()
 
 			Vec3 vShootPos = pPlayer->m_vecOrigin() + pPlayer->GetViewOffset();
 			Vec3 vForward; Math::AngleVectors(pPlayer->GetEyeAngles(), &vForward);
-			Vec3 vShootEnd = mDots.contains(pPlayer) ? mDots[pPlayer] : vShootPos + (vForward * 8192.f);
+			Vec3 vShootEnd = m_mStoreDots.contains(pPlayer) ? m_mStoreDots[pPlayer] : vShootPos + (vForward * 8192.f);
 
 			CGameTrace trace = {};
 			CTraceFilterHitscan filter = {};
