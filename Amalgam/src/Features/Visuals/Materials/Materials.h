@@ -21,6 +21,7 @@ public:
 	void LoadMaterials();
 	void UnloadMaterials();
 	void ReloadMaterials();
+	void FlushPendingReload();
 
 	IMaterial* Create(char const* szName, KeyValues* pKV);
 	void Remove(IMaterial* pMaterial);

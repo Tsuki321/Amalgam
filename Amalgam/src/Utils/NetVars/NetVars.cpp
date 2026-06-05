@@ -13,15 +13,15 @@ void CNetVars::Init()
 	m_mProps.clear();
 
 	for (auto pCurrNode = I::Client->GetAllClasses(); pCurrNode; pCurrNode = pCurrNode->m_pNext)
-		BuildTable(pCurrNode->m_pRecvTable);
+		if (pCurrNode->m_pRecvTable)
+			BuildTable(pCurrNode->m_pRecvTable, 0, FNV1A::Hash32(pCurrNode->m_pNetworkName));
 }
 
-void CNetVars::BuildTable(RecvTable* pTable, int nBaseOffset)
+void CNetVars::BuildTable(RecvTable* pTable, int nBaseOffset, uint32_t uTopLevelClassHash)
 {
 	if (!pTable)
 		return;
 
-	const auto uClassHash = FNV1A::Hash32(pTable->GetName());
 	for (int i = 0; i < pTable->GetNumProps(); i++)
 	{
 		RecvProp* pProp = pTable->GetProp(i);
@@ -29,7 +29,7 @@ void CNetVars::BuildTable(RecvTable* pTable, int nBaseOffset)
 			continue;
 
 		const auto uPropHash = FNV1A::Hash32(pProp->m_pVarName);
-		const uint64_t uKey = (uint64_t(uClassHash) << 32) | uPropHash;
+		const uint64_t uKey = (uint64_t(uTopLevelClassHash) << 32) | uPropHash;
 		const int nOffset = pProp->GetOffset() + nBaseOffset;
 
 		m_mOffsets[uKey] = nOffset;
@@ -38,7 +38,7 @@ void CNetVars::BuildTable(RecvTable* pTable, int nBaseOffset)
 		if (auto pDataTable = pProp->GetDataTable())
 		{
 			if (pDataTable != pTable)
-				BuildTable(pDataTable, nOffset);
+				BuildTable(pDataTable, nOffset, uTopLevelClassHash);
 		}
 	}
 }

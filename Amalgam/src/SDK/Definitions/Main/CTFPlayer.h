@@ -121,7 +121,6 @@ public:
 	NETVAR(m_nHalloweenBombHeadStage, int, "CTFPlayer", "m_nHalloweenBombHeadStage");
 	NETVAR(m_nPlayerCondEx2, int, "CTFPlayer", "m_nPlayerCondEx2");
 	NETVAR(m_nPlayerCondEx3, int, "CTFPlayer", "m_nPlayerCondEx3");
-	NETVAR(m_nStreaks, void*, "CTFPlayer", "m_nStreaks");
 	int& m_nStreaks(int index)
 	{
 		static int nOffset = U::NetVars.GetNetVar("CTFPlayer", "m_nStreaks");

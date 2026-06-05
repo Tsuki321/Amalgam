@@ -64,25 +64,26 @@ uintptr_t CMemory::FindSignature(const char* szModule, const char* szPattern)
 			return 0x0;
 
 		const auto pImageBytes = reinterpret_cast<byte*>(hModule);
-
-		// SIMD first-byte prefilter: collect candidate offsets in 16-byte chunks
-		// and only do the expensive full pattern check at those offsets.
-		const byte firstByte = iPatternBytes[0] == -1 ? 0 : byte(iPatternBytes[0]);
-		const bool bFirstWild = iPatternBytes[0] == -1;
-
-		std::vector<size_t> candidates;
-		candidates.reserve(64);
-
 		const size_t dwScanLimit = dwImageSize > iPatternSize ? dwImageSize - iPatternSize : 0;
 
-		if (bFirstWild)
+		// Inline full-pattern check at offset i.
+		auto checkAt = [&](size_t i) -> bool
 		{
-			for (size_t i = 0; i < dwScanLimit; ++i)
-				candidates.push_back(i);
-		}
-		else
+			for (size_t j = 0; j < iPatternSize; ++j)
+			{
+				if (pImageBytes[i + j] != iPatternBytes[j] && iPatternBytes[j] != -1)
+					return false;
+			}
+			return true;
+		};
+
+		// SIMD first-byte prefilter: when first byte is concrete, only run the
+		// full pattern check at offsets where that byte matches.  When the
+		// first byte is a wildcard, fall back to the original byte-by-byte
+		// scan (still O(N*M), but no candidates-vector allocation).
+		if (iPatternBytes[0] != -1)
 		{
-			const __m128i needle = _mm_set1_epi8(char(firstByte));
+			const __m128i needle = _mm_set1_epi8(char(iPatternBytes[0]));
 			size_t i = 0;
 			const size_t dwSimdEnd = dwScanLimit >= 16 ? dwScanLimit - 16 : 0;
 			for (; i < dwSimdEnd; i += 16)
@@ -93,37 +94,28 @@ uintptr_t CMemory::FindSignature(const char* szModule, const char* szPattern)
 					continue;
 				for (int k = 0; k < 16; ++k)
 				{
-					if (mask & (1 << k))
-					{
-						const size_t offset = i + k;
-						if (offset < dwScanLimit)
-							candidates.push_back(offset);
-					}
+					if (!(mask & (1 << k)))
+						continue;
+					const size_t offset = i + k;
+					if (offset >= dwScanLimit)
+						break;
+					if (checkAt(offset))
+						return uintptr_t(&pImageBytes[offset]);
 				}
 			}
 			for (; i < dwScanLimit; ++i)
 			{
-				if (pImageBytes[i] == firstByte)
-					candidates.push_back(i);
+				if (pImageBytes[i] == iPatternBytes[0] && checkAt(i))
+					return uintptr_t(&pImageBytes[i]);
 			}
 		}
-
-		// Now loop through all candidates and check if the full byte sequence matches
-		for (auto i : candidates)
+		else
 		{
-			auto bFound = true;
-
-			for (size_t j = 0; j < iPatternSize; ++j)
+			for (size_t i = 0; i < dwScanLimit; ++i)
 			{
-				if (pImageBytes[i + j] != iPatternBytes[j] && iPatternBytes[j] != -1)
-				{
-					bFound = false;
-					break;
-				}
+				if (checkAt(i))
+					return uintptr_t(&pImageBytes[i]);
 			}
-
-			if (bFound)
-				return uintptr_t(&pImageBytes[i]);
 		}
 
 		return 0x0;

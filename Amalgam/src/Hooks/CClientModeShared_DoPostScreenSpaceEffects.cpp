@@ -43,4 +43,5 @@ MAKE_HOOK(CViewRender_DrawViewModels, S::CViewRender_DrawViewModels(), void,
 		return;
 
 	F::Glow.RenderSecond();
+	F::Materials.FlushPendingReload();
 }

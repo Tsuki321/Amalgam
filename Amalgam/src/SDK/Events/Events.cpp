@@ -10,6 +10,7 @@
 #include "../../Features/Output/Output.h"
 #include "../../Features/Resolver/Resolver.h"
 #include "../../Features/Visuals/Visuals.h"
+#include "../../Features/Killstreak/Killstreak.h"
 
 bool CEventListener::Initialize()
 {
@@ -66,6 +67,7 @@ void CEventListener::FireGameEvent(IGameEvent* pEvent)
 			return;
 
 		F::Backtrack.SetLerp();
+		F::Killstreak.PlayerSpawn();
 		return;
 	}
 	case FNV1A::Hash32Const("revive_player_notify"):

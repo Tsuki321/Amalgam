@@ -245,6 +245,8 @@ void CMaterials::UnloadMaterials()
 
 void CMaterials::ReloadMaterials()
 {
+	// Skip mid-frame reloads from Glow/CameraWindow to avoid mutating material
+	// pointers while we're iterating; retry at end of frame.
 	if (F::Glow.m_bRendering || F::CameraWindow.m_bDrawing)
 	{
 		m_bReloadPending = true;
@@ -254,6 +256,12 @@ void CMaterials::ReloadMaterials()
 	UnloadMaterials();
 
 	LoadMaterials();
+}
+
+void CMaterials::FlushPendingReload()
+{
+	if (m_bReloadPending)
+		ReloadMaterials();
 }
 
 

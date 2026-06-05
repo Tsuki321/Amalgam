@@ -15,7 +15,7 @@ public:
 	RecvProp* GetNetProp(const char* szClass, const char* szNetVar);
 
 private:
-	void BuildTable(RecvTable* pTable, int nBaseOffset = 0);
+	void BuildTable(RecvTable* pTable, int nBaseOffset, uint32_t uTopLevelClassHash);
 
 	std::unordered_map<uint64_t, int> m_mOffsets;
 	std::unordered_map<uint64_t, RecvProp*> m_mProps;

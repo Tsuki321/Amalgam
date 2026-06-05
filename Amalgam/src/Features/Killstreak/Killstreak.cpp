@@ -7,9 +7,9 @@ int CKillstreak::GetCurrentStreak()
 
 void CKillstreak::ApplyKillstreak(int iLocalIdx)
 {
-	if (const auto& pLocal = H::Entities.GetLocal())
+	if (auto pLocal = H::Entities.GetLocal())
 	{
-		if (const auto& pResource = H::Entities.GetResource())
+		if (auto pResource = H::Entities.GetResource())
 		{
 			int iCurrentStreak = GetCurrentStreak();
 			pResource->SetStreak(iLocalIdx, kTFStreak_Kills, iCurrentStreak);
@@ -60,7 +60,7 @@ void CKillstreak::PlayerDeath(IGameEvent* pEvent)
 	ApplyKillstreak(iLocalPlayerIdx);
 }
 
-void CKillstreak::PlayerSpawn(IGameEvent* pEvent)
+void CKillstreak::PlayerSpawn()
 {
 	if (!Vars::Visuals::UI::KillstreakWeapons.Value)
 		return;

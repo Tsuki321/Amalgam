@@ -50,7 +50,7 @@ public:
 	void SetMinwalk(int iUserID, bool bValue);
 	void SetView(int iUserID, bool bValue);
 	bool GetAngles(CTFPlayer* pPlayer, float* pYaw = nullptr, float* pPitch = nullptr, bool* pMinwalk = nullptr, bool bFake = false);
-	CTFPlayer* GetClosestToFOV() { return m_pClosestFOVTarget; }
+	CTFPlayer* GetClosestToFOV() { return m_iClosestFOVTargetTick == I::GlobalVars->tickcount ? m_pClosestFOVTarget : nullptr; }
 	void Reset();
 };
 
