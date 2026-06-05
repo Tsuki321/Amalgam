@@ -245,7 +245,7 @@ void CMaterials::UnloadMaterials()
 
 void CMaterials::ReloadMaterials()
 {
-	if (F::Glow.m_bRendering || F::CameraWindow.m_bRendering)
+	if (F::Glow.m_bRendering || F::CameraWindow.m_bDrawing)
 	{
 		m_bReloadPending = true;
 		return;

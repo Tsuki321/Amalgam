@@ -512,10 +512,10 @@ CTFWeaponBase* CEntities::GetWeapon()
 	if (auto pLocal = GetLocal())
 	{
 		auto& hActive = pLocal->m_hActiveWeapon();
-		if (m_pLocalWeapon && m_pLocalWeapon->GetRefEHandle().m_Index == hActive.m_Index)
+		if (m_pLocalWeapon && m_pLocalWeapon->GetRefEHandle().ToInt() == hActive.ToInt())
 			return m_pLocalWeapon;
 
-		m_pLocalWeapon = hActive.As<CTFWeaponBase>();
+		m_pLocalWeapon = hActive.Get();
 		return m_pLocalWeapon;
 	}
 	return nullptr;
