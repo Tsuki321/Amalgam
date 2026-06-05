@@ -38,7 +38,6 @@ public:
 
 	bool m_bRendering = false;
 
-	std::unordered_mapset<int> m_mEntities = {};
 	std::bitset<MAX_EDICTS> m_bEntities = {};
 };
 

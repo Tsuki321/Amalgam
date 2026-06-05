@@ -22,7 +22,7 @@ MAKE_HOOK(CClientModeShared_DoPostScreenSpaceEffects, U::Memory.GetVirtual(I::Cl
 		return CALL_ORIGINAL(rcx, pSetup);
 
 	F::Visuals.DrawEffects();
-	F::Chams.m_mEntities.clear();
+	F::Chams.m_bEntities.reset();
 	if (I::EngineVGui->IsGameUIVisible() || !F::Materials.m_bLoaded)
 		return CALL_ORIGINAL(rcx, pSetup);
 

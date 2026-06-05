@@ -23,7 +23,7 @@ MAKE_HOOK(IVModelRender_DrawModelExecute, U::Memory.GetVirtual(I::ModelRender, 1
 	if (F::Glow.m_bRendering)
 		return F::Glow.RenderHandler(pState, pInfo, pBoneToWorld);
 
-	if (F::Chams.m_mEntities.contains(pInfo.entity_index))
+	if (F::Chams.m_bEntities.test(pInfo.entity_index))
 		return;
 
 	auto pEntity = I::ClientEntityList->GetClientEntity(pInfo.entity_index);
