@@ -363,3 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 Unibox-master/
+
+# opencode workspace configuration (machine-local, not part of the repo)
+.opencode/
+opencode.json
+AGENTS.md
