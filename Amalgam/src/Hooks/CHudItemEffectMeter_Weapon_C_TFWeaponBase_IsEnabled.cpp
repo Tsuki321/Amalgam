@@ -6,5 +6,5 @@ MAKE_HOOK(CHudItemEffectMeter_Weapon_C_TFWeaponBase_IsEnabled, S::CHudItemEffect
 {
 	DEBUG_RETURN(CHudItemEffectMeter_Weapon_C_TFWeaponBase_IsEnabled);
 
-	return Vars::Visuals::UI::KillstreakWeapons.Value ? true : CALL_ORIGINAL();
+	return Vars::Visuals::Other::KillstreakWeapons.Value ? true : CALL_ORIGINAL();
 }

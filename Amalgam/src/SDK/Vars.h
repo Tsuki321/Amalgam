@@ -536,7 +536,6 @@ NAMESPACE_BEGIN(Vars)
 			CVar(ScoreboardUtility, "Scoreboard utility", false);
 			CVar(ScoreboardColors, "Scoreboard colors", false, VISUAL);
 			CVar(CleanScreenshots, "Clean screenshots", true);
-			CVar(KillstreakWeapons, "Killstreak weapons", false);
 		NAMESPACE_END(UI)
 
 		NAMESPACE_BEGIN(Thirdperson)
@@ -676,6 +675,10 @@ NAMESPACE_BEGIN(Vars)
 			CVar(SeparatorSpacing, "Separator spacing", 4, NOSAVE | DEBUGVAR, 1, 16);
 			CVar(SeparatorLength, "Separator length", 12.f, NOSAVE | DEBUGVAR, 2.f, 16.f);
 		NAMESPACE_END(Path)
+
+		NAMESPACE_BEGIN(Other, Other Visuals)
+			CVar(KillstreakWeapons, "Killstreak weapons", false, VISUAL);
+		NAMESPACE_END(Other)
 
 		NAMESPACE_BEGIN(Trajectory)
 			CVar(Override, "Simulation override", false, NOSAVE | DEBUGVAR);

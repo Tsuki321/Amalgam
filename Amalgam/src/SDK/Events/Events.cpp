@@ -61,19 +61,13 @@ void CEventListener::FireGameEvent(IGameEvent* pEvent)
 		F::CheatDetection.ReportDamage(pEvent);
 		return;
 	}
-	case FNV1A::Hash32Const("player_death"):
-	{
-		if (Vars::Visuals::UI::KillstreakWeapons.Value)
-			F::Killstreak.PlayerDeath(pEvent);
-		return;
-	}
 	case FNV1A::Hash32Const("player_spawn"):
 	{
 		if (I::EngineClient->GetPlayerForUserID(pEvent->GetInt("userid")) != I::EngineClient->GetLocalPlayer())
 			return;
 
 		F::Backtrack.SetLerp();
-		F::Killstreak.PlayerSpawn();
+		F::Killstreak.PlayerSpawn(pEvent);
 		return;
 	}
 	case FNV1A::Hash32Const("revive_player_notify"):

@@ -60,12 +60,12 @@ void CKillstreak::PlayerDeath(IGameEvent* pEvent)
 	ApplyKillstreak(iLocalPlayerIdx);
 }
 
-void CKillstreak::PlayerSpawn()
+void CKillstreak::PlayerSpawn(IGameEvent* pEvent)
 {
-	if (!Vars::Visuals::UI::KillstreakWeapons.Value)
+	if (!Vars::Visuals::Other::KillstreakWeapons.Value)
 		return;
 
-	int iLocalPlayerIdx = H::Entities.GetLocalPlayerIndex();
+	int iLocalPlayerIdx = I::EngineClient->GetLocalPlayer();
 
 	Reset();
 	ApplyKillstreak(iLocalPlayerIdx);

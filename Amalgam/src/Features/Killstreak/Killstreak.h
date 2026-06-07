@@ -13,7 +13,7 @@ private:
 
 public:
 	void PlayerDeath(IGameEvent* pEvent);
-	void PlayerSpawn();
+	void PlayerSpawn(IGameEvent* pEvent);
 	void Reset();
 };
 
