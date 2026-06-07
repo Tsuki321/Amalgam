@@ -199,9 +199,9 @@ PriorityLabel_t* CPlayerlistUtils::GetSignificantTag(uint32_t uAccountID, int iM
 	if (!uAccountID)
 		return nullptr;
 
-	auto consider = [&](PriorityLabel_t* pTag, bool bLabelMode) {
+	auto consider = [&](PriorityLabel_t* pTag, bool bLabelMode) -> PriorityLabel_t* {
 		if (!pTag || pTag->m_bLabel != bLabelMode)
-			return PriorityLabel_t* (nullptr);
+			return nullptr;
 		return pTag;
 	};
 

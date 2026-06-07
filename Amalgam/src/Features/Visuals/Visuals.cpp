@@ -877,7 +877,7 @@ void CVisuals::Store()
 				continue;
 
 			Projectile_t& tProjectile = m_mProjectiles[pEntity];
-			mProjectiles[pEntity];
+			m_mStoreProjectiles[pEntity];
 
 			ProjectileInfo tProjInfo = {};
 			F::ProjSim.GetInfo(pEntity, tProjInfo);
