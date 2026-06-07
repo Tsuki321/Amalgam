@@ -91,6 +91,7 @@ void CEntities::Store()
 				|| (nClassID == ETFClassID::CTFProjectile_Arrow || nClassID == ETFClassID::CTFProjectile_GrapplingHook) && !pEntity->m_MoveType())
 				break;
 
+			m_aModels[n] = FNV1A::Hash32(I::ModelInfoClient->GetModelName(pEntity->GetModel()));
 			m_aGroups[EntityEnum::WorldProjectile].push_back(pEntity);
 
 			if (nClassID == ETFClassID::CTFGrenadePipebombProjectile)
@@ -326,6 +327,7 @@ void CEntities::Clear(bool bShutdown)
 {
 	m_pLocal = nullptr;
 	m_pLocalWeapon = nullptr;
+	m_hLocalWeapon = CHandle<CTFWeaponBase>();
 	m_pPlayerResource = nullptr;
 	m_iLocalPlayerIndex = 0;
 	m_aGroups = {};
@@ -512,9 +514,10 @@ CTFWeaponBase* CEntities::GetWeapon()
 	if (auto pLocal = GetLocal())
 	{
 		auto& hActive = pLocal->m_hActiveWeapon();
-		if (m_pLocalWeapon && m_pLocalWeapon->GetRefEHandle().ToInt() == hActive.ToInt())
+		if (m_hLocalWeapon.ToInt() == hActive.ToInt() && m_pLocalWeapon)
 			return m_pLocalWeapon;
 
+		m_hLocalWeapon = hActive;
 		m_pLocalWeapon = static_cast<CTFWeaponBase*>(hActive.Get());
 		return m_pLocalWeapon;
 	}

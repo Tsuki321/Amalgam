@@ -33,6 +33,7 @@ private:
 	CTFWeaponBase* m_pLocalWeapon = nullptr;
 	CTFPlayerResource* m_pPlayerResource = nullptr;
 	int m_iLocalPlayerIndex = 0;
+	CHandle<CTFWeaponBase> m_hLocalWeapon;
 
 	std::array<std::vector<CBaseEntity*>, EntityEnum::GroupsMax> m_aGroups = {};
 
@@ -100,7 +101,7 @@ public:
 	int GetParty(uint32_t uAccountID);
 	int GetPartyCount();
 
-	int GetLocalPlayerIndex() const { return m_iLocalPlayerIndex; }
+	int GetLocalPlayerIndex() const { return m_iLocalPlayerIndex ? m_iLocalPlayerIndex : I::EngineClient->GetLocalPlayer(); }
 };
 
 ADD_FEATURE_CUSTOM(CEntities, Entities, H);

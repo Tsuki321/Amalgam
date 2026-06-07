@@ -29,12 +29,12 @@ MAKE_HOOK(CTFPlayer_FireBullet, S::CTFPlayer_FireBullet(), void,
 
 	int iIndex = H::Entities.GetLocalPlayerIndex();
 	int iTeam = pLocal->m_iTeamNum();
-	static CBaseCombatWeapon* pCachedWeapon = nullptr;
+	static CHandle<CBaseCombatWeapon> hCachedWeapon;
 	static int iMuzzleAttachment = 0;
-	if (pWeapon != pCachedWeapon)
+	if (hCachedWeapon.ToInt() != pWeapon->GetRefEHandle().ToInt())
 	{
 		iMuzzleAttachment = pWeapon->LookupAttachment("muzzle");
-		pCachedWeapon = pWeapon;
+		hCachedWeapon = pWeapon->GetRefEHandle();
 	}
 	int iAttachment = iMuzzleAttachment;
 	pWeapon->GetAttachment(iAttachment, trace.startpos);

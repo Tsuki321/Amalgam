@@ -265,23 +265,14 @@ void CMisc::WeaponSway()
 {
 	static auto cl_wpn_sway_interp = H::ConVars.FindVar("cl_wpn_sway_interp");
 	static auto cl_wpn_sway_scale = H::ConVars.FindVar("cl_wpn_sway_scale");
-	static float flLastInterp = 0.f, flLastScale = 0.f;
-	static bool bLastSway = false;
 
 	bool bSway = Vars::Visuals::Viewmodel::SwayInterp.Value || Vars::Visuals::Viewmodel::SwayScale.Value;
 	float flInterp = bSway ? Vars::Visuals::Viewmodel::SwayInterp.Value : 0.f;
 	float flScale = bSway ? Vars::Visuals::Viewmodel::SwayScale.Value : 0.f;
-	if (flInterp != flLastInterp || bSway != bLastSway)
-	{
+	if (cl_wpn_sway_interp->GetFloat() != flInterp)
 		cl_wpn_sway_interp->SetValue(flInterp);
-		flLastInterp = flInterp;
-	}
-	if (flScale != flLastScale || bSway != bLastSway)
-	{
+	if (cl_wpn_sway_scale->GetFloat() != flScale)
 		cl_wpn_sway_scale->SetValue(flScale);
-		flLastScale = flScale;
-	}
-	bLastSway = bSway;
 }
 
 

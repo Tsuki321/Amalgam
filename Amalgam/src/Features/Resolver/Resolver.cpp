@@ -125,8 +125,11 @@ void CResolver::CreateMove()
 	if (!pResource)
 		return;
 
-	m_pClosestFOVTarget = RunClosestToFOV();
-	m_iClosestFOVTargetTick = I::GlobalVars->tickcount;
+	if (Vars::Resolver::CycleYaw.Value || Vars::Resolver::CyclePitch.Value || Vars::Resolver::CycleMinwalk.Value || Vars::Resolver::CycleView.Value)
+	{
+		m_pClosestFOVTarget = RunClosestToFOV();
+		m_iClosestFOVTargetTick = I::GlobalVars->tickcount;
+	}
 
 	if (Vars::Resolver::CycleYaw.Value)
 	{
