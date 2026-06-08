@@ -686,10 +686,7 @@ void CVisuals::FOV(CTFPlayer* pLocal, CViewSetup* pView)
 	{
 		G::FOV = pView->fov;
 		if (pLocal->IsAlive())
-		{
 			pLocal->m_iFOV() = ceilf(pView->fov);
-			pLocal->m_iDefaultFOV() = pView->fov;
-		}
 		return;
 	}
 
