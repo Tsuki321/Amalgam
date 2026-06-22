@@ -27,6 +27,9 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 	bool bSame = tChams.Visible == tChams.Occluded;
 	bTwoModel &= bOccluded && !bSame;
 
+	// Update hashes once for both passes
+	tChams.UpdateHashes();
+
 	Begin();
 	switch (iModel)
 	{
@@ -50,7 +53,6 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 		}
 
 		// Use precomputed hashes from Chams_t
-		tChams.UpdateHashes();
 		for (auto& [uHash, tColor] : tChams.m_vVisibleHashes)
 		{
 			auto pMaterial = F::Materials.GetMaterial(uHash);
@@ -98,8 +100,7 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 		}
 		pRenderContext->DepthRange(0.f, 0.2f);
 
-		// Use precomputed hashes from Chams_t
-		tChams.UpdateHashes();
+		// Use precomputed hashes from Chams_t (already updated above)
 		for (auto& [uHash, tColor] : tChams.m_vOccludedHashes)
 		{
 			auto pMaterial = F::Materials.GetMaterial(uHash);
@@ -140,6 +141,12 @@ void CChams::Store(CTFPlayer* pLocal)
 	if (!pLocal || !F::Groups.GroupsActive())
 		return;
 
+	// Pre-allocate pool to prevent reallocation during Store()
+	// Estimate: typical frame has 32 players + 12 buildings + 20 projectiles + 3 special = ~67 entities
+	// Reserve 128 to handle peak scenarios without reallocation
+	if (m_vEntityPool.capacity() < 128)
+		m_vEntityPool.reserve(128);
+
 	auto AllocateChamsInfo = [this]() -> ChamsInfo_t*
 	{
 		if (m_iPoolUsed >= m_vEntityPool.size())
@@ -160,9 +167,7 @@ void CChams::Store(CTFPlayer* pLocal)
 			pInfo->m_pChams = &pGroup->m_tChams;
 			pInfo->m_iFlags = 0;
 
-			// Update precomputed hashes in Chams_t if dirty
-			pGroup->m_tChams.UpdateHashes();
-
+			// Hash update handled by DrawModel() before rendering
 			m_vEntities.push_back(pInfo);
 		}
 
@@ -185,9 +190,7 @@ void CChams::Store(CTFPlayer* pLocal)
 					pInfo->m_pChams = &pGroup->m_tBacktrackChams;
 					pInfo->m_iFlags = pGroup->m_iBacktrack;
 
-					// Update precomputed hashes in Chams_t if dirty
-					pGroup->m_tBacktrackChams.UpdateHashes();
-
+					// Hash update handled by DrawModel() before rendering
 					m_vEntities.push_back(pInfo);
 				}
 			}
@@ -203,9 +206,7 @@ void CChams::Store(CTFPlayer* pLocal)
 		pInfo->m_pChams = &pGroup->m_tChams;
 		pInfo->m_iFlags = 1;
 
-		// Update precomputed hashes in Chams_t if dirty
-		pGroup->m_tChams.UpdateHashes();
-
+		// Hash update handled by DrawModel() before rendering
 		m_vEntities.push_back(pInfo);
 	}
 }

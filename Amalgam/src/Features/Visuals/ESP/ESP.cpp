@@ -25,10 +25,8 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
 	tCache.m_vBars.clear();
-	if (tCache.m_vText.capacity() < 8)
-		tCache.m_vText.reserve(8);
-	if (tCache.m_vBars.capacity() < 2)
-		tCache.m_vBars.reserve(2);
+	tCache.m_vText.reserve(8);
+	tCache.m_vBars.reserve(2);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pPlayer, pGroup).Alpha(255);
@@ -397,10 +395,8 @@ static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Grou
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
 	tCache.m_vBars.clear();
-	if (tCache.m_vText.capacity() < 4)
-		tCache.m_vText.reserve(4);
-	if (tCache.m_vBars.capacity() < 3)
-		tCache.m_vBars.reserve(3);
+	tCache.m_vText.reserve(4);
+	tCache.m_vBars.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pBuilding, pGroup).Alpha(255);
@@ -524,8 +520,7 @@ static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, 
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	if (tCache.m_vText.capacity() < 3)
-		tCache.m_vText.reserve(3);
+	tCache.m_vText.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pProjectile, pGroup);
@@ -625,8 +620,7 @@ static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Gr
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	if (tCache.m_vText.capacity() < 3)
-		tCache.m_vText.reserve(3);
+	tCache.m_vText.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pObjective, pGroup);
@@ -679,8 +673,7 @@ static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* p
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	if (tCache.m_vText.capacity() < 2)
-		tCache.m_vText.reserve(2);
+	tCache.m_vText.reserve(2);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pEntity, pGroup);
@@ -776,28 +769,11 @@ void CESP::Store(CTFPlayer* pLocal)
 			StoreMisc(pEntity, pLocal, pGroup, m_mEntityCache);
 	}
 
-	// Prune stale entries from caches
-	for (auto it = m_mPlayerCache.begin(); it != m_mPlayerCache.end();)
-	{
-		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
-			it = m_mPlayerCache.erase(it);
-		else
-			++it;
-	}
-	for (auto it = m_mBuildingCache.begin(); it != m_mBuildingCache.end();)
-	{
-		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
-			it = m_mBuildingCache.erase(it);
-		else
-			++it;
-	}
-	for (auto it = m_mEntityCache.begin(); it != m_mEntityCache.end();)
-	{
-		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
-			it = m_mEntityCache.erase(it);
-		else
-			++it;
-	}
+	// Prune stale entries from caches using erase_if pattern
+	auto IsStale = [this](const auto& pair) { return m_sActiveEntities.find(pair.first) == m_sActiveEntities.end(); };
+	std::erase_if(m_mPlayerCache, IsStale);
+	std::erase_if(m_mBuildingCache, IsStale);
+	std::erase_if(m_mEntityCache, IsStale);
 }
 
 static matrix3x4 s_aBones[MAXSTUDIOBONES];
