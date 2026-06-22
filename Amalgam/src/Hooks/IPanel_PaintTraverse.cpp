@@ -11,6 +11,14 @@ MAKE_HOOK(IPanel_PaintTraverse, U::Memory.GetVirtual(I::Panel, 41), void,
 	// Cache panel name hashes to avoid repeated strlen() and FNV1A calculations
 	static std::unordered_map<VPANEL, uint32_t> s_mPanelHashCache;
 
+	// Periodically clear cache to prevent unbounded growth from destroyed/recycled panels
+	static int s_iFrameCount = 0;
+	if (++s_iFrameCount > 10000)
+	{
+		s_mPanelHashCache.clear();
+		s_iFrameCount = 0;
+	}
+
 	uint32_t uHash;
 	auto it = s_mPanelHashCache.find(vguiPanel);
 	if (it != s_mPanelHashCache.end())
@@ -19,7 +27,11 @@ MAKE_HOOK(IPanel_PaintTraverse, U::Memory.GetVirtual(I::Panel, 41), void,
 	}
 	else
 	{
-		uHash = FNV1A::Hash32(I::Panel->GetName(vguiPanel));
+		const char* sName = I::Panel->GetName(vguiPanel);
+		if (!sName)
+			return CALL_ORIGINAL(rcx, vguiPanel, forceRepaint, allowForce);
+
+		uHash = FNV1A::Hash32(sName);
 		s_mPanelHashCache[vguiPanel] = uHash;
 	}
 

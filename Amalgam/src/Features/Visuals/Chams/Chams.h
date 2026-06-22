@@ -30,7 +30,7 @@ private:
 	IMaterial* m_pOriginalMaterial = nullptr;
 	OverrideType_t m_iOriginalOverride = OVERRIDE_NORMAL;
 
-	int m_iFlags = false;
+	int m_iFlags = 0;
 
 public:
 	void Store(CTFPlayer* pLocal);
@@ -43,6 +43,7 @@ public:
 	bool m_bRendering = false;
 
 	std::bitset<MAX_EDICTS> m_bEntities = {};
+	std::unordered_map<int, bool> m_mEntities = {};
 };
 
 ADD_FEATURE(CChams, Chams);

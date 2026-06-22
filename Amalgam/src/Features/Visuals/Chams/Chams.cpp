@@ -50,64 +50,29 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 		}
 
 		// Use cached hashes if available
-		if (pVisibleHashes && !pVisibleHashes->empty())
+		if (pVisibleHashes)
 		{
 			for (auto& [uHash, tColor] : *pVisibleHashes)
 			{
 				auto pMaterial = F::Materials.GetMaterial(uHash);
+				if (!pMaterial)
+					continue;
 
 				F::Materials.SetColor(pMaterial, tColor);
-				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-				if (pMaterial)
-				{
-					if (pMaterial->m_bInvertCull)
-						pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
-					if (pMaterial->m_bBlockOccluded)
-						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
-				}
+				I::ModelRender->ForcedMaterialOverride(pMaterial->m_pMaterial);
+				if (pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+				if (pMaterial->m_bBlockOccluded)
+					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
 
 				m_bRendering = true;
 				pEntity->DrawModel(STUDIO_RENDER);
 				m_bRendering = false;
 
-				if (pMaterial)
-				{
-					if (pMaterial->m_bInvertCull)
-						pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
-					if (pMaterial->m_bBlockOccluded)
-						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
-				}
-			}
-		}
-		else
-		{
-			// Fallback to original behavior
-			auto& vMaterials = tChams.GetVisible();
-			for (auto& [sName, tColor] : vMaterials)
-			{
-				auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
-
-				F::Materials.SetColor(pMaterial, tColor);
-				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-				if (pMaterial)
-				{
-					if (pMaterial->m_bInvertCull)
-						pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
-					if (pMaterial->m_bBlockOccluded)
-						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
-				}
-
-				m_bRendering = true;
-				pEntity->DrawModel(STUDIO_RENDER);
-				m_bRendering = false;
-
-				if (pMaterial)
-				{
-					if (pMaterial->m_bInvertCull)
-						pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
-					if (pMaterial->m_bBlockOccluded)
-						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
-				}
+				if (pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+				if (pMaterial->m_bBlockOccluded)
+					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
 			}
 		}
 
@@ -136,44 +101,29 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 		pRenderContext->DepthRange(0.f, 0.2f);
 
 		// Use cached hashes if available
-		if (pOccludedHashes && !pOccludedHashes->empty())
+		if (pOccludedHashes)
 		{
 			for (auto& [uHash, tColor] : *pOccludedHashes)
 			{
 				auto pMaterial = F::Materials.GetMaterial(uHash);
+				if (!pMaterial)
+					continue;
 
 				F::Materials.SetColor(pMaterial, tColor);
-				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-				if (pMaterial && pMaterial->m_bInvertCull)
+				I::ModelRender->ForcedMaterialOverride(pMaterial->m_pMaterial);
+				if (pMaterial->m_bInvertCull)
 					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+				if (pMaterial->m_bBlockOccluded)
+					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
 
 				m_bRendering = true;
 				pEntity->DrawModel(STUDIO_RENDER);
 				m_bRendering = false;
 
-				if (pMaterial && pMaterial->m_bInvertCull)
+				if (pMaterial->m_bInvertCull)
 					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
-			}
-		}
-		else
-		{
-			// Fallback to original behavior
-			auto& vMaterials = tChams.GetOccluded();
-			for (auto& [sName, tColor] : vMaterials)
-			{
-				auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
-
-				F::Materials.SetColor(pMaterial, tColor);
-				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-				if (pMaterial && pMaterial->m_bInvertCull)
-					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
-
-				m_bRendering = true;
-				pEntity->DrawModel(STUDIO_RENDER);
-				m_bRendering = false;
-
-				if (pMaterial && pMaterial->m_bInvertCull)
-					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+				if (pMaterial->m_bBlockOccluded)
+					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
 			}
 		}
 
@@ -306,7 +256,7 @@ void CChams::RenderMain()
 			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
-			m_iFlags = false;
+			m_iFlags = 0;
 		}
 	}
 	for (auto& tInfo : m_vEntities)
@@ -323,7 +273,7 @@ void CChams::RenderMain()
 			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
-			m_iFlags = false;
+			m_iFlags = 0;
 		}
 	}
 
