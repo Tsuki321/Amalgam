@@ -1,8 +1,6 @@
 #pragma once
 #include "../../SDK/SDK.h"
 
-//#define DEBUG_TEXT
-
 struct Projectile_t
 {
 	std::vector<Vec3> m_vPath = {};
@@ -28,16 +26,6 @@ struct PickupData_t
 	Vec3 m_vLocation;
 };
 
-#ifdef DEBUG_TEXT
-struct DebugText_t
-{
-	std::string m_sText = "";
-	Color_t m_tColor = {};
-	std::optional<Vec2> vPosition2D = std::nullopt;
-	std::optional<Vec3> vPosition3D = std::nullopt;
-};
-#endif
-
 class CVisuals
 {
 private:
@@ -48,10 +36,6 @@ private:
 	std::unordered_mapset<CBaseEntity*> m_mStoreProjectiles = {};
 	std::unordered_map<IClientEntity*, Vec3> m_mStoreDots = {};
 
-#ifdef DEBUG_TEXT
-	std::vector<DebugText_t> m_vDebugText = {};
-#endif
-
 public:
 	void Event(IGameEvent* pEvent, uint32_t uHash);
 	void Store();
@@ -59,15 +43,6 @@ public:
 
 	void ProjectileTrace(CTFPlayer* pPlayer, CTFWeaponBase* pWeapon, const bool bInterp = true);
 	void DrawPickupTimers();
-	void DrawDebugInfo(CTFPlayer* pLocal);
-
-#ifdef DEBUG_TEXT
-	void AddDebugText(const DebugText_t& sText);
-	void AddDebugText(const std::string& sString, Color_t tColor = Vars::Menu::Theme::Active.Value);
-	void AddDebugText(const std::string& sString, const Vec2& vPosition, Color_t tColor = Vars::Menu::Theme::Active.Value);
-	void AddDebugText(const std::string& sString, const Vec3& vPosition, Color_t tColor = Vars::Menu::Theme::Active.Value);
-	void ClearDebugText();
-#endif
 
 	std::vector<DrawBox_t> GetHitboxes(matrix3x4* aBones, CBaseAnimating* pEntity, std::vector<int> vHitboxes = {}, int iTarget = -1);
 	void DrawEffects();
@@ -81,7 +56,7 @@ public:
 	void RestoreWorldModulation();
 
 	void CreateMove(CTFPlayer* pLocal, CTFWeaponBase* pWeapon);
-	void LocalAnimations(CTFPlayer* pLocal, CUserCmd* pCmd, bool bSendPacket);
+	void LocalAnimations(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd, bool bSendPacket);
 };
 
 ADD_FEATURE(CVisuals, Visuals);

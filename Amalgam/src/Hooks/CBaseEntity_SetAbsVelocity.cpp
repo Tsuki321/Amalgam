@@ -15,9 +15,8 @@ public:
 		float flGravityCorrection = 0.f;
 		if (bZ)
 		{
-			static auto sv_gravity = H::ConVars.FindVar("sv_gravity");
 			float flDeltaTicks = float(iDeltaTicks) + 0.5f; // ?
-			flGravityCorrection = (flDeltaTicks * flDeltaTicks - flDeltaTicks) / 2.f * sv_gravity->GetFloat() * TICK_INTERVAL * TICK_INTERVAL;
+			flGravityCorrection = (powf(flDeltaTicks, 2.f) - flDeltaTicks) / 2.f * SDK::GetGravity() * powf(TICK_INTERVAL, 2);
 		}
 		float flDeltaValue = m_flNewAxisValue - m_flOldAxisValue;
 		float flTickVelocity = flDeltaValue + (flDeltaValue ? PLAYER_ORIGIN_COMPRESSION / 2 * sign(m_flNewAxisValue) : 0.f) - flGravityCorrection;
@@ -121,9 +120,7 @@ MAKE_HOOK(CBaseEntity_SetAbsVelocity, S::CBaseEntity_SetAbsVelocity(), void,
 			FloatRange_t flPositionRange = { tAxisInfo[i].m_flNewAxisValue + flVelocityRange.Max * flRewind, tAxisInfo[i].m_flNewAxisValue + flVelocityRange.Min * flRewind };
 			if (i == 2)
 			{
-				static auto sv_gravity = H::ConVars.FindVar("sv_gravity");
-				float flRewindPlus = flRewind + TICK_INTERVAL / 2;
-				float flGravityCorrection = sv_gravity->GetFloat() * flRewindPlus * flRewindPlus / 2;
+				float flGravityCorrection = SDK::GetGravity() * powf(flRewind + TICK_INTERVAL / 2, 2.f) / 2;
 				flPositionRange.Min -= flGravityCorrection, flPositionRange.Max -= flGravityCorrection;
 			}
 			if (flPositionRange.Min > tRecord.m_vecOrigin[i] || tRecord.m_vecOrigin[i] > flPositionRange.Max)
