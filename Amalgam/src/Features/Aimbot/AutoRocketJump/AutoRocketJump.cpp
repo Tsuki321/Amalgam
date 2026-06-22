@@ -33,7 +33,9 @@ bool CAutoRocketJump::SetAngles(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUser
 	Vec3 vPoint;
 	if (pLocal->IsOnGround())
 	{
-		float flOffset = sqrtf(2 * powf(vOffset.y, 2.f) + powf(vOffset.z, 2.f));
+		float oy2 = vOffset.y * vOffset.y;
+		float oz2 = vOffset.z * vOffset.z;
+		float flOffset = sqrtf(2 * oy2 + oz2);
 		Vec3 vWishVel = { pCmd->forwardmove, pCmd->sidemove, 0.f }, vDir;
 		if (vWishVel.IsZero())
 			vDir = { 0.f, m_vAngles.y, 0.f };
@@ -48,7 +50,9 @@ bool CAutoRocketJump::SetAngles(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUser
 	else
 	{
 		//float flOffset = pLocal->m_vecMaxs().x;
-		float flOffset = sqrtf(2 * powf(vOffset.y, 2.f) + powf(vOffset.z, 2.f));
+		float oy2 = vOffset.y * vOffset.y;
+		float oz2 = vOffset.z * vOffset.z;
+		float flOffset = sqrtf(2 * oy2 + oz2);
 		bool bShouldReturn = true;
 		MoveStorage tMoveStorage;
 		if (F::MoveSim.Initialize(pLocal, tMoveStorage, false))
@@ -99,7 +103,11 @@ bool CAutoRocketJump::SetAngles(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUser
 		Vec3 vTarget = Math::RotatePoint(vPoint - vLocalPos, {}, { 0, -flYaw, 0 });
 		Vec3 vForward; Math::AngleVectors(tProjInfo.m_vAng - Vec3(0, flYaw, 0), &vForward); vForward.y = 0; vForward.Normalize();
 		float flB = 2 * (vShootPos.x * vForward.x + vShootPos.z * vForward.z);
-		float flC = (powf(vShootPos.x, 2) + powf(vShootPos.z, 2)) - (powf(vTarget.x, 2) + powf(vTarget.z, 2));
+		float sx2 = vShootPos.x * vShootPos.x;
+		float sz2 = vShootPos.z * vShootPos.z;
+		float tx2 = vTarget.x * vTarget.x;
+		float tz2 = vTarget.z * vTarget.z;
+		float flC = (sx2 + sz2) - (tx2 + tz2);
 		auto vSolutions = Math::SolveQuadratic(1.f, flB, flC);
 		if (!vSolutions.empty())
 		{

@@ -157,7 +157,7 @@ void CVisuals::ProjectileTrace(CTFPlayer* pPlayer, CTFWeaponBase* pWeapon, const
 
 	if (bInterp)
 	{
-		float flDistanceSqr = powf(500.f, 2);
+		float flDistanceSqr = 500.f * 500.f;
 		if (Vars::Visuals::Simulation::ProjectileCamera.Value && !I::EngineVGui->IsGameUIVisible() && pPlayer->m_vecOrigin().DistToSqr(trace.endpos) > flDistanceSqr)
 		{
 			CGameTrace cameraTrace = {};

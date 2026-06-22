@@ -211,6 +211,8 @@ public:
 
 	inline Vec2 Pow(float flPower) const
 	{
+		if (flPower == 2.f)
+			return Vec2(x * x, y * y);
 		return Vec2(powf(x, flPower), powf(y, flPower));
 	}
 
@@ -558,6 +560,8 @@ public:
 
 	inline Vec3 Pow(float flPower) const
 	{
+		if (flPower == 2.f)
+			return Vec3(x * x, y * y, z * z);
 		return Vec3(powf(x, flPower), powf(y, flPower), powf(z, flPower));
 	}
 

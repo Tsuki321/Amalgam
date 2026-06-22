@@ -51,7 +51,7 @@ float CNoSpreadHitscan::CalcMantissaStep(float flV)
 	float flMantissaStep = (flNextValue - flV) * 1000;
 
 	// get the closest mantissa (next power of 2)
-	return powf(2, ceilf(logf(flMantissaStep) / logf(2)));
+	return exp2f(ceilf(log2f(flMantissaStep)));
 }
 
 std::string CNoSpreadHitscan::GetFormat(int iServerTime)

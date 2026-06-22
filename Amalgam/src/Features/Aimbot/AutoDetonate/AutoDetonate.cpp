@@ -84,7 +84,7 @@ bool CAutoDetonate::CheckEntity(CBaseEntity* pEntity, CTFPlayer* pLocal, CTFWeap
 {
 	// CEntitySphereQuery actually does a box test so we need to make sure the distance is less than the radius first
 	Vec3 vPos; pEntity->m_Collision()->CalcNearestPoint(vOrigin, &vPos);
-	float flRadiusSqr = powf(flRadius, 2);
+	float flRadiusSqr = flRadius * flRadius;
 	if (vOrigin.DistToSqr(vPos) > flRadiusSqr)
 		return false;
 

@@ -13,7 +13,9 @@ void COffscreenArrows::DrawArrowTo(const Vec3& vFromPos, const Vec3& vToPos, Col
 	if (SDK::W2S(vToPos, vScreen, true))
 	{
 		float flMin = std::min(vCenter.x, vCenter.y), flMax = std::max(vCenter.x, vCenter.y);
-		float flDist = sqrt(powf(vScreen.x - vCenter.x, 2) + powf(vScreen.y - vCenter.y, 2));
+		float dx = vScreen.x - vCenter.x;
+		float dy = vScreen.y - vCenter.y;
+		float flDist = sqrtf(dx * dx + dy * dy);
 		tColor.a *= std::clamp((flDist - flMin) / (flMin != flMax ? flMax - flMin : 1), 0.f, 1.f);
 		if (!tColor.a)
 			return;

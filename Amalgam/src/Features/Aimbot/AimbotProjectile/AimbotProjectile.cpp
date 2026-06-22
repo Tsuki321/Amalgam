@@ -446,7 +446,8 @@ static inline std::vector<Vec3> ComputePoints(float flRadius, int iSamples)
 	{
 		float t = a * n;
 		float y = 1 - (n / (iSamples - 1.f)) * 2;
-		float r = sqrtf(1 - powf(y, 2));
+		float y2 = y * y;
+		float r = sqrtf(1 - y2);
 		float x = cosf(t) * r;
 		float z = sinf(t) * r;
 
@@ -527,7 +528,7 @@ static inline void HandleTrace(const Vec3& vPoint, std::vector<Setup_t>& vPoints
 static float s_flTotal = 0.f;
 static inline void HandleFace(Face_t& tFace, std::vector<Setup_t>& vPoints, float flDensity, float flRadius, float flCutoff, const Vec3& vTargetEye, const Vec3& vTargetCenter, const Vec3& vTargetOrigin, Info_t& tInfo, CGameTrace& trace, ITraceFilter& filter)
 {
-	float flRadiusSqr = powf(flRadius, 2);
+	float flRadiusSqr = flRadius * flRadius;
 	float flRadius2Sqr = flRadiusSqr * 4;
 	int nMask = F::ProjSim.m_bPhysics ? MASK_SHOT | CONTENTS_DISPSOLID : MASK_SHOT;
 
@@ -690,7 +691,8 @@ void CAimbotProjectile::SetupSplashPoints(Vec3& vOrigin, std::vector<Setup_t>& v
 					CalculateAngle(m_tInfo.m_vLocalEye, tPoint.m_vPoint, 0, tPoint.m_tSolution, iFlags);
 					if (tPoint.m_tSolution.m_iCalculated == CalculateResultEnum::Bad)
 						return false;
-					vPoint -= Vec3(0, 0, m_tInfo.m_flGravity * powf(tPoint.m_tSolution.m_flTime, 2) / 2);
+					float flTime = tPoint.m_tSolution.m_flTime;
+					vPoint -= Vec3(0, 0, m_tInfo.m_flGravity * flTime * flTime / 2);
 					vAngle = Vec3(tPoint.m_tSolution.m_flPitch, tPoint.m_tSolution.m_flYaw);
 				}
 				return fCheckNormal(trace.plane.normal, vPoint, &vAngle);
@@ -735,7 +737,8 @@ void CAimbotProjectile::SetupSplashPoints(Vec3& vOrigin, std::vector<Setup_t>& v
 				CalculateAngle(m_tInfo.m_vLocalEye, tPoint.m_vPoint, 0, tPoint.m_tSolution, iFlags);
 				if (tPoint.m_tSolution.m_iCalculated == CalculateResultEnum::Bad)
 					return false;
-				vPoint -= Vec3(0, 0, m_tInfo.m_flGravity * powf(tPoint.m_tSolution.m_flTime, 2) / 2);
+				float flTime = tPoint.m_tSolution.m_flTime;
+				vPoint -= Vec3(0, 0, m_tInfo.m_flGravity * flTime * flTime / 2);
 				vAngle = Vec3(tPoint.m_tSolution.m_flPitch, tPoint.m_tSolution.m_flYaw);
 			}
 			return fCheckNormal(vNormal, vPoint, &vAngle);
@@ -747,7 +750,8 @@ void CAimbotProjectile::SetupSplashPoints(Vec3& vOrigin, std::vector<Setup_t>& v
 		SDK::Output("Faces", std::format("{}", vFaces.size()).c_str(), {}, OUTPUT_CONSOLE);
 #endif
 
-		float flCutoff = Vars::Aimbot::Projectile::SplashSamplesCutoff.Value * powf(vFaces.size(), 2); s_flTotal = SDK::StdRandomFloat();
+		float flFacesSqr = static_cast<float>(vFaces.size());
+		float flCutoff = Vars::Aimbot::Projectile::SplashSamplesCutoff.Value * flFacesSqr * flFacesSqr; s_flTotal = SDK::StdRandomFloat();
 		for (auto& tFace : vFaces)
 		{
 			HandleFace(tFace, vSplashPoints, flDensity, flRadius, flCutoff, vTargetEye, vTargetCenter, vOrigin, m_tInfo, trace, filter);

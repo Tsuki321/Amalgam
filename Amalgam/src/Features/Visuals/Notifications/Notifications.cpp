@@ -2,7 +2,13 @@
 
 static inline float EaseInOutCubic(float x)
 {
-	return x < 0.5f ? 4 * powf(x, 3) : 1 - powf(-2 * x + 2, 3) / 2;
+	if (x < 0.5f)
+	{
+		float x3 = x * x * x;
+		return 4.f * x3;
+	}
+	float t = -2.f * x + 2.f;
+	return 1.f - t * t * t / 2.f;
 }
 
 void CNotifications::Add(const std::string& sText, Color_t tColor, float flLifeTime, float flPanTime)

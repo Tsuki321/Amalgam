@@ -41,8 +41,8 @@ namespace Math
 
 	inline void SinCos(float flRadians, float& flSin, float& flCos)
 	{
-		flSin = std::sin(flRadians);
-		flCos = std::cos(flRadians);
+		flSin = sinf(flRadians);
+		flCos = cosf(flRadians);
 	}
 
 	inline float DeltaAngle(float a, float b, float r = 360.f)
@@ -89,7 +89,7 @@ namespace Math
 
 	inline float SimpleSpline(float val)
 	{
-		float flSquared = powf(val, 2);
+		float flSquared = val * val;
 		return 3 * flSquared - 2 * flSquared * val;
 	}
 
@@ -119,35 +119,39 @@ namespace Math
 
 	inline std::vector<float> SolveQuadratic(float a, float b, float c)
 	{
-		float flRoot = powf(b, 2.f) - 4 * a * c;
+		float flRoot = b * b - 4 * a * c;
 		if (flRoot < 0)
 			return {};
 
 		a *= 2;
 		b = -b;
-		return { (b + sqrt(flRoot)) / a, (b - sqrt(flRoot)) / a };
+		return { (b + sqrtf(flRoot)) / a, (b - sqrtf(flRoot)) / a };
 	}
 
 	inline float SolveCubic(float b, float c, float d)
 	{
-		float p = c - powf(b, 2) / 3;
-		float q = 2 * powf(b, 3) / 27 - b * c / 3 + d;
+		float b2 = b * b;
+		float p = c - b2 / 3;
+		float b3 = b2 * b;
+		float q = 2 * b3 / 27 - b * c / 3 + d;
 
 		if (p == 0.f)
-			return powf(q, 1.f / 3);
+			return cbrtf(q);
 		if (q == 0.f)
 			return 0.f;
 
-		float t = sqrt(fabs(p) / 3);
+		float t = sqrtf(fabsf(p) / 3);
 		float g = q / (2.f / 3) / (p * t);
 		if (p > 0.f)
-			return -2 * t * sinh(asinh(g) / 3) - b / 3;
+			return -2 * t * sinhf(asinhf(g) / 3) - b / 3;
 
-		if (4 * powf(p, 3) + 27 * powf(q, 2) < 0.f)
-			return 2 * t * cos(acos(g) / 3) - b / 3;
+		float p3 = p * p * p;
+		float q2 = q * q;
+		if (4 * p3 + 27 * q2 < 0.f)
+			return 2 * t * cosf(acosf(g) / 3) - b / 3;
 		if (q > 0.f)
-			return -2 * t * cosh(acosh(-g) / 3) - b / 3;
-		return 2 * t * cosh(acosh(g) / 3) - b / 3;
+			return -2 * t * coshf(acoshf(-g) / 3) - b / 3;
+		return 2 * t * coshf(acoshf(g) / 3) - b / 3;
 	}
 
 	inline std::vector<float> SolveQuartic(float a, float b, float c, float d, float e)
@@ -155,22 +159,26 @@ namespace Math
 		std::vector<float> vRoots = {};
 
 		b /= a, c /= a, d /= a, e /= a;
-		float p = c - powf(b, 2) / (8.f / 3);
-		float q = powf(b, 3) / 8 - b * c / 2 + d;
+		float b2 = b * b;
+		float p = c - b2 / (8.f / 3);
+		float b3 = b2 * b;
+		float q = b3 / 8 - b * c / 2 + d;
+		float p2 = p * p;
+		float b4 = b2 * b2;
 		float m = SolveCubic(
 			p,
-			powf(p, 2) / 4 + powf(b, 4) / (256.f / 3) - e + b * d / 4 - powf(b, 2) * c / 16,
-			-powf(q, 2) / 8
+			p2 / 4 + b4 / (256.f / 3) - e + b * d / 4 - b2 * c / 16,
+			-q * q / 8
 		);
 		if (m < 0.f)
 			return vRoots;
 
-		float flSqrt2m = sqrt(2 * m);
+		float flSqrt2m = sqrtf(2 * m);
 		if (q == 0.f)
 		{
 			if (-m - p > 0.f)
 			{
-				float flDelta = sqrt(2 * (-m - p));
+				float flDelta = sqrtf(2 * (-m - p));
 				vRoots.push_back(-b / 4 + (flSqrt2m - flDelta) / 2);
 				vRoots.push_back(-b / 4 - (flSqrt2m - flDelta) / 2);
 				vRoots.push_back(-b / 4 + (flSqrt2m + flDelta) / 2);
@@ -186,13 +194,13 @@ namespace Math
 		{
 			if (-m - p + q / flSqrt2m >= 0.f)
 			{
-				float flDelta = sqrt(2 * (-m - p + q / flSqrt2m));
+				float flDelta = sqrtf(2 * (-m - p + q / flSqrt2m));
 				vRoots.push_back((-flSqrt2m + flDelta) / 2 - b / 4);
 				vRoots.push_back((-flSqrt2m - flDelta) / 2 - b / 4);
 			}
 			if (-m - p - q / flSqrt2m >= 0.f)
 			{
-				float flDelta = sqrt(2 * (-m - p - q / flSqrt2m));
+				float flDelta = sqrtf(2 * (-m - p - q / flSqrt2m));
 				vRoots.push_back((flSqrt2m + flDelta) / 2 - b / 4);
 				vRoots.push_back((flSqrt2m - flDelta) / 2 - b / 4);
 			}

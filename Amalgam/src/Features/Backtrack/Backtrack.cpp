@@ -249,7 +249,8 @@ void CBacktrack::MakeRecords()
 			const Vec3 vDelta = tCurRecord.m_vOrigin - pLastRecord->m_vOrigin;
 			
 			static auto sv_lagcompensation_teleport_dist = H::ConVars.FindVar("sv_lagcompensation_teleport_dist");
-			const float flDist = powf(sv_lagcompensation_teleport_dist->GetFloat(), 2.f);
+			const float flDistLimit = sv_lagcompensation_teleport_dist->GetFloat();
+			const float flDist = flDistLimit * flDistLimit;
 			if (vDelta.Length2DSqr() > flDist)
 			{
 				bLagComp = true;
