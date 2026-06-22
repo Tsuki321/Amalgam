@@ -18,7 +18,7 @@ void CChams::End()
 	I::ModelRender->ForcedMaterialOverride(m_pOriginalMaterial, m_iOriginalOverride);
 }
 
-void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel, bool bTwoModel)
+void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel, bool bTwoModel, const std::vector<std::pair<uint32_t, Color_t>>* pVisibleHashes, const std::vector<std::pair<uint32_t, Color_t>>* pOccludedHashes)
 {
 	if (!m_iFlags && iModel == ModelEnum::Visible)
 		m_mEntities[pEntity->entindex()];
@@ -49,31 +49,65 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 			pRenderContext->SetStencilTestMask(0x0);
 		}
 
-		auto& vMaterials = tChams.GetVisible();
-		for (auto& [sName, tColor] : vMaterials)
+		// Use cached hashes if available
+		if (pVisibleHashes && !pVisibleHashes->empty())
 		{
-			auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
-
-			F::Materials.SetColor(pMaterial, tColor);
-			I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-			if (pMaterial)
+			for (auto& [uHash, tColor] : *pVisibleHashes)
 			{
-				if (pMaterial->m_bInvertCull)
-					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
-				if (pMaterial->m_bBlockOccluded)
-					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
+				auto pMaterial = F::Materials.GetMaterial(uHash);
+
+				F::Materials.SetColor(pMaterial, tColor);
+				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
+				if (pMaterial)
+				{
+					if (pMaterial->m_bInvertCull)
+						pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+					if (pMaterial->m_bBlockOccluded)
+						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
+				}
+
+				m_bRendering = true;
+				pEntity->DrawModel(STUDIO_RENDER);
+				m_bRendering = false;
+
+				if (pMaterial)
+				{
+					if (pMaterial->m_bInvertCull)
+						pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+					if (pMaterial->m_bBlockOccluded)
+						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
+				}
 			}
-
-			m_bRendering = true;
-			pEntity->DrawModel(STUDIO_RENDER);
-			m_bRendering = false;
-
-			if (pMaterial)
+		}
+		else
+		{
+			// Fallback to original behavior
+			auto& vMaterials = tChams.GetVisible();
+			for (auto& [sName, tColor] : vMaterials)
 			{
-				if (pMaterial->m_bInvertCull)
-					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
-				if (pMaterial->m_bBlockOccluded)
-					pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
+				auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
+
+				F::Materials.SetColor(pMaterial, tColor);
+				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
+				if (pMaterial)
+				{
+					if (pMaterial->m_bInvertCull)
+						pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+					if (pMaterial->m_bBlockOccluded)
+						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_REPLACE);
+				}
+
+				m_bRendering = true;
+				pEntity->DrawModel(STUDIO_RENDER);
+				m_bRendering = false;
+
+				if (pMaterial)
+				{
+					if (pMaterial->m_bInvertCull)
+						pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+					if (pMaterial->m_bBlockOccluded)
+						pRenderContext->SetStencilZFailOperation(STENCILOPERATION_KEEP);
+				}
 			}
 		}
 
@@ -101,22 +135,46 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 		}
 		pRenderContext->DepthRange(0.f, 0.2f);
 
-		auto& vMaterials = tChams.GetOccluded();
-		for (auto& [sName, tColor] : vMaterials)
+		// Use cached hashes if available
+		if (pOccludedHashes && !pOccludedHashes->empty())
 		{
-			auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
+			for (auto& [uHash, tColor] : *pOccludedHashes)
+			{
+				auto pMaterial = F::Materials.GetMaterial(uHash);
 
-			F::Materials.SetColor(pMaterial, tColor);
-			I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
-			if (pMaterial && pMaterial->m_bInvertCull)
-				pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+				F::Materials.SetColor(pMaterial, tColor);
+				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
+				if (pMaterial && pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
 
-			m_bRendering = true;
-			pEntity->DrawModel(STUDIO_RENDER);
-			m_bRendering = false;
+				m_bRendering = true;
+				pEntity->DrawModel(STUDIO_RENDER);
+				m_bRendering = false;
 
-			if (pMaterial && pMaterial->m_bInvertCull)
-				pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+				if (pMaterial && pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+			}
+		}
+		else
+		{
+			// Fallback to original behavior
+			auto& vMaterials = tChams.GetOccluded();
+			for (auto& [sName, tColor] : vMaterials)
+			{
+				auto pMaterial = F::Materials.GetMaterial(FNV1A::Hash32(sName.c_str()));
+
+				F::Materials.SetColor(pMaterial, tColor);
+				I::ModelRender->ForcedMaterialOverride(pMaterial ? pMaterial->m_pMaterial : nullptr);
+				if (pMaterial && pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CW);
+
+				m_bRendering = true;
+				pEntity->DrawModel(STUDIO_RENDER);
+				m_bRendering = false;
+
+				if (pMaterial && pMaterial->m_bInvertCull)
+					pRenderContext->CullMode(MATERIAL_CULLMODE_CCW);
+			}
 		}
 
 		if (bTwoModel)
@@ -142,7 +200,25 @@ void CChams::Store(CTFPlayer* pLocal)
 
 		if (pGroup->m_tChams() && !pEntity->IsWearableVM()
 			&& SDK::IsOnScreen(pEntity, pEntity->IsBaseCombatWeapon() || pEntity->IsWearable()))
-			m_vEntities.emplace_back(pEntity, &pGroup->m_tChams);
+		{
+			ChamsInfo_t tInfo;
+			tInfo.m_pEntity = pEntity;
+			tInfo.m_pChams = &pGroup->m_tChams;
+			tInfo.m_iFlags = 0;
+
+			// Cache material hashes
+			auto& vVisible = pGroup->m_tChams.GetVisible();
+			tInfo.m_vVisibleHashes.reserve(vVisible.size());
+			for (auto& [sName, tColor] : vVisible)
+				tInfo.m_vVisibleHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+			auto& vOccluded = pGroup->m_tChams.GetOccluded();
+			tInfo.m_vOccludedHashes.reserve(vOccluded.size());
+			for (auto& [sName, tColor] : vOccluded)
+				tInfo.m_vOccludedHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+			m_vEntities.emplace_back(tInfo);
+		}
 
 		if (pEntity->IsPlayer() && pEntity != pLocal && pGroup->m_iBacktrack & BacktrackEnum::Enabled && pGroup->m_tBacktrackChams(false)
 			&& (F::Backtrack.GetFakeLatency() || F::Backtrack.GetFakeInterp() > G::Lerp || F::Backtrack.GetWindow()))
@@ -157,7 +233,25 @@ void CChams::Store(CTFPlayer* pLocal)
 					bShowFriendly = true, bShowEnemy = false;
 
 				if (bShowEnemy && pEntity->m_iTeamNum() != pLocal->m_iTeamNum() || bShowFriendly && pEntity->m_iTeamNum() == pLocal->m_iTeamNum())
-					m_vEntities.emplace_back(pEntity, &pGroup->m_tBacktrackChams, pGroup->m_iBacktrack);
+				{
+					ChamsInfo_t tInfo;
+					tInfo.m_pEntity = pEntity;
+					tInfo.m_pChams = &pGroup->m_tBacktrackChams;
+					tInfo.m_iFlags = pGroup->m_iBacktrack;
+
+					// Cache material hashes
+					auto& vVisible = pGroup->m_tBacktrackChams.GetVisible();
+					tInfo.m_vVisibleHashes.reserve(vVisible.size());
+					for (auto& [sName, tColor] : vVisible)
+						tInfo.m_vVisibleHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+					auto& vOccluded = pGroup->m_tBacktrackChams.GetOccluded();
+					tInfo.m_vOccludedHashes.reserve(vOccluded.size());
+					for (auto& [sName, tColor] : vOccluded)
+						tInfo.m_vOccludedHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+					m_vEntities.emplace_back(tInfo);
+				}
 			}
 		}
 	}
@@ -166,7 +260,23 @@ void CChams::Store(CTFPlayer* pLocal)
 	if (F::FakeAngle.bDrawChams && F::FakeAngle.bBonesSetup
 		&& F::Groups.GetGroup(TargetsEnum::FakeAngle, pGroup) && pGroup->m_tChams(false))
 	{	// fakeangle
-		m_vEntities.emplace_back(pLocal, &pGroup->m_tChams, 1);
+		ChamsInfo_t tInfo;
+		tInfo.m_pEntity = pLocal;
+		tInfo.m_pChams = &pGroup->m_tChams;
+		tInfo.m_iFlags = 1;
+
+		// Cache material hashes
+		auto& vVisible = pGroup->m_tChams.GetVisible();
+		tInfo.m_vVisibleHashes.reserve(vVisible.size());
+		for (auto& [sName, tColor] : vVisible)
+			tInfo.m_vVisibleHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+		auto& vOccluded = pGroup->m_tChams.GetOccluded();
+		tInfo.m_vOccludedHashes.reserve(vOccluded.size());
+		for (auto& [sName, tColor] : vOccluded)
+			tInfo.m_vOccludedHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+		m_vEntities.emplace_back(tInfo);
 	}
 }
 
@@ -185,7 +295,7 @@ void CChams::RenderMain()
 	for (auto& tInfo : m_vEntities)
 	{
 		if (!tInfo.m_iFlags)
-			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 		else
 		{
 			m_iFlags = tInfo.m_iFlags;
@@ -193,7 +303,7 @@ void CChams::RenderMain()
 			auto pPlayer = tInfo.m_pEntity->As<CTFPlayer>();
 			const float flOldInvisibility = pPlayer->m_flInvisibility();
 			pPlayer->m_flInvisibility() = 0.f;
-			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
 			m_iFlags = false;
@@ -202,7 +312,7 @@ void CChams::RenderMain()
 	for (auto& tInfo : m_vEntities)
 	{
 		if (!tInfo.m_iFlags)
-			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 		else
 		{
 			m_iFlags = tInfo.m_iFlags;
@@ -210,7 +320,7 @@ void CChams::RenderMain()
 			auto pPlayer = tInfo.m_pEntity->As<CTFPlayer>();
 			const float flOldInvisibility = pPlayer->m_flInvisibility();
 			pPlayer->m_flInvisibility() = 0.f;
-			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true, &tInfo.m_vVisibleHashes, &tInfo.m_vOccludedHashes);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
 			m_iFlags = false;

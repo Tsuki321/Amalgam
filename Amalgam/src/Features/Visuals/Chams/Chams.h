@@ -10,7 +10,7 @@ private:
 	void Begin();
 	void End();
 
-	void DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel = ModelEnum::Visible, bool bTwoModel = false);
+	void DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel = ModelEnum::Visible, bool bTwoModel = false, const std::vector<std::pair<uint32_t, Color_t>>* pVisibleHashes = nullptr, const std::vector<std::pair<uint32_t, Color_t>>* pOccludedHashes = nullptr);
 
 	void RenderBacktrack(const DrawModelState_t& pState, const ModelRenderInfo_t& pInfo);
 	void RenderFakeAngle(const DrawModelState_t& pState, const ModelRenderInfo_t& pInfo);
@@ -20,6 +20,8 @@ private:
 		CBaseEntity* m_pEntity;
 		Chams_t* m_pChams;
 		int m_iFlags = 0;
+		std::vector<std::pair<uint32_t, Color_t>> m_vVisibleHashes = {};
+		std::vector<std::pair<uint32_t, Color_t>> m_vOccludedHashes = {};
 	};
 	std::vector<ChamsInfo_t> m_vEntities = {};
 

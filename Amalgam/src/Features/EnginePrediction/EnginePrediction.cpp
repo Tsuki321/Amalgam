@@ -45,11 +45,11 @@ void CEnginePrediction::Simulate(CTFPlayer* pLocal, CUserCmd* pCmd)
 	I::Prediction->m_bInPrediction = true;
 	I::Prediction->SetLocalViewAngles(pCmd->viewangles);
 
-	AdjustPlayers(pLocal);
+	// AdjustPlayers is called in CPrediction_RunSimulation hook - don't call it again here
 	I::Prediction->SetupMove(pLocal, pCmd, I::MoveHelper, &m_tMoveData);
 	I::GameMovement->ProcessMovement(pLocal, &m_tMoveData);
 	I::Prediction->FinishMove(pLocal, pCmd, &m_tMoveData);
-	RestorePlayers();
+	// RestorePlayers is called in CPrediction_RunSimulation hook after CALL_ORIGINAL
 
 	I::MoveHelper->SetHost(nullptr);
 	pLocal->m_pCurrentCommand() = nullptr;

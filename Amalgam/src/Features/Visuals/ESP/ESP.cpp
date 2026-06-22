@@ -26,6 +26,11 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
 	tCache.m_bBones = pGroup->m_iESP & ESPEnum::Bones;
 
+	// Pre-reserve vector capacity based on typical ESP configuration
+	// Typical player has ~4-8 text entries and 1-2 bars
+	tCache.m_vText.reserve(8);
+	tCache.m_vBars.reserve(2);
+
 	if (pGroup->m_iESP & ESPEnum::Distance && !bLocal)
 	{
 		Vec3 vDelta = pPlayer->m_vecOrigin() - pLocal->m_vecOrigin();
@@ -388,6 +393,11 @@ static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Grou
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pBuilding, pGroup).Alpha(255);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
 
+	// Pre-reserve vector capacity for buildings
+	// Typical building has ~2-4 text entries and 1-3 bars
+	tCache.m_vText.reserve(4);
+	tCache.m_vBars.reserve(3);
+
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
 		Vec3 vDelta = pBuilding->m_vecOrigin() - pLocal->m_vecOrigin();
@@ -507,6 +517,10 @@ static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, 
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pProjectile, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
 
+	// Pre-reserve vector capacity for projectiles
+	// Typical projectile has ~2-3 text entries
+	tCache.m_vText.reserve(3);
+
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
 		Vec3 vDelta = pProjectile->m_vecOrigin() - pLocal->m_vecOrigin();
@@ -602,6 +616,10 @@ static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Gr
 	tCache.m_tColor = F::Groups.GetColor(pObjective, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
 
+	// Pre-reserve vector capacity for objectives
+	// Typical objective has ~2-3 text entries
+	tCache.m_vText.reserve(3);
+
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
 		Vec3 vDelta = pObjective->m_vecOrigin() - pLocal->m_vecOrigin();
@@ -649,6 +667,10 @@ static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* p
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pEntity, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
+
+	// Pre-reserve vector capacity for misc entities
+	// Typical misc entity has ~1-2 text entries
+	tCache.m_vText.reserve(2);
 
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
