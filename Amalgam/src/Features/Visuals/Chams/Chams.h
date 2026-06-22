@@ -10,20 +10,23 @@ private:
 	void Begin();
 	void End();
 
-	void DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel = ModelEnum::Visible, bool bTwoModel = false, const std::vector<std::pair<uint32_t, Color_t>>* pVisibleHashes = nullptr, const std::vector<std::pair<uint32_t, Color_t>>* pOccludedHashes = nullptr);
+	void DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel = ModelEnum::Visible, bool bTwoModel = false);
 
 	void RenderBacktrack(const DrawModelState_t& pState, const ModelRenderInfo_t& pInfo);
 	void RenderFakeAngle(const DrawModelState_t& pState, const ModelRenderInfo_t& pInfo);
 
 	struct ChamsInfo_t
 	{
-		CBaseEntity* m_pEntity;
-		Chams_t* m_pChams;
+		CBaseEntity* m_pEntity = nullptr;
+		Chams_t* m_pChams = nullptr;
 		int m_iFlags = 0;
-		std::vector<std::pair<uint32_t, Color_t>> m_vVisibleHashes = {};
-		std::vector<std::pair<uint32_t, Color_t>> m_vOccludedHashes = {};
 	};
-	std::vector<ChamsInfo_t> m_vEntities = {};
+
+	// Object pool to eliminate per-frame allocations
+	std::vector<ChamsInfo_t> m_vEntityPool = {};
+	size_t m_iPoolUsed = 0;
+
+	std::vector<ChamsInfo_t*> m_vEntities = {};
 
 	Color_t m_tOriginalColor = {};
 	float m_flOriginalBlend = 1.f;

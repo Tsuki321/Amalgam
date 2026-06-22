@@ -21,15 +21,19 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 	int iClassNum = pPlayer->m_iClass();
 
 	PlayerCache_t& tCache = mCache[pPlayer];
+
+	// Clear and rebuild vectors - capacity preserved across frames
+	tCache.m_vText.clear();
+	tCache.m_vBars.clear();
+	if (tCache.m_vText.capacity() < 8)
+		tCache.m_vText.reserve(8);
+	if (tCache.m_vBars.capacity() < 2)
+		tCache.m_vBars.reserve(2);
+
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pPlayer, pGroup).Alpha(255);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
 	tCache.m_bBones = pGroup->m_iESP & ESPEnum::Bones;
-
-	// Pre-reserve vector capacity based on typical ESP configuration
-	// Typical player has ~4-8 text entries and 1-2 bars
-	tCache.m_vText.reserve(8);
-	tCache.m_vBars.reserve(2);
 
 	if (pGroup->m_iESP & ESPEnum::Distance && !bLocal)
 	{
@@ -389,14 +393,18 @@ static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Grou
 	bool bIsMini = pBuilding->m_bMiniBuilding();
 
 	BuildingCache_t& tCache = mCache[pBuilding];
+
+	// Clear and rebuild vectors - capacity preserved across frames
+	tCache.m_vText.clear();
+	tCache.m_vBars.clear();
+	if (tCache.m_vText.capacity() < 4)
+		tCache.m_vText.reserve(4);
+	if (tCache.m_vBars.capacity() < 3)
+		tCache.m_vBars.reserve(3);
+
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pBuilding, pGroup).Alpha(255);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
-
-	// Pre-reserve vector capacity for buildings
-	// Typical building has ~2-4 text entries and 1-3 bars
-	tCache.m_vText.reserve(4);
-	tCache.m_vBars.reserve(3);
 
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
@@ -513,13 +521,15 @@ static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, 
 	int iIndex = pOwner ? pOwner->entindex() : -1;
 
 	EntityCache_t& tCache = mCache[pProjectile];
+
+	// Clear and rebuild vectors - capacity preserved across frames
+	tCache.m_vText.clear();
+	if (tCache.m_vText.capacity() < 3)
+		tCache.m_vText.reserve(3);
+
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pProjectile, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
-
-	// Pre-reserve vector capacity for projectiles
-	// Typical projectile has ~2-3 text entries
-	tCache.m_vText.reserve(3);
 
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
@@ -612,13 +622,15 @@ static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Gr
 		return;
 
 	EntityCache_t& tCache = mCache[pObjective];
+
+	// Clear and rebuild vectors - capacity preserved across frames
+	tCache.m_vText.clear();
+	if (tCache.m_vText.capacity() < 3)
+		tCache.m_vText.reserve(3);
+
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pObjective, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
-
-	// Pre-reserve vector capacity for objectives
-	// Typical objective has ~2-3 text entries
-	tCache.m_vText.reserve(3);
 
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
@@ -664,13 +676,15 @@ static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Gr
 static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache)
 {
 	EntityCache_t& tCache = mCache[pEntity];
+
+	// Clear and rebuild vectors - capacity preserved across frames
+	tCache.m_vText.clear();
+	if (tCache.m_vText.capacity() < 2)
+		tCache.m_vText.reserve(2);
+
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pEntity, pGroup);
 	tCache.m_bBox = pGroup->m_iESP & ESPEnum::Box;
-
-	// Pre-reserve vector capacity for misc entities
-	// Typical misc entity has ~1-2 text entries
-	tCache.m_vText.reserve(2);
 
 	if (pGroup->m_iESP & ESPEnum::Distance)
 	{
@@ -733,16 +747,22 @@ static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* p
 
 void CESP::Store(CTFPlayer* pLocal)
 {
-	m_mPlayerCache.clear();
-	m_mBuildingCache.clear();
-	m_mEntityCache.clear();
+	m_sActiveEntities.clear();
 	if (!pLocal || !F::Groups.GroupsActive())
+	{
+		// Clear all caches when ESP is disabled
+		m_mPlayerCache.clear();
+		m_mBuildingCache.clear();
+		m_mEntityCache.clear();
 		return;
+	}
 
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup(false))
 	{
 		if (!pGroup->m_iESP)
 			continue;
+
+		m_sActiveEntities.insert(pEntity);
 
 		if (pEntity->IsPlayer())
 			StorePlayer(pEntity->As<CTFPlayer>(), pLocal, pGroup, m_mPlayerCache);
@@ -754,6 +774,29 @@ void CESP::Store(CTFPlayer* pLocal)
 			StoreObjective(pEntity, pLocal, pGroup, m_mEntityCache);
 		else
 			StoreMisc(pEntity, pLocal, pGroup, m_mEntityCache);
+	}
+
+	// Prune stale entries from caches
+	for (auto it = m_mPlayerCache.begin(); it != m_mPlayerCache.end();)
+	{
+		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
+			it = m_mPlayerCache.erase(it);
+		else
+			++it;
+	}
+	for (auto it = m_mBuildingCache.begin(); it != m_mBuildingCache.end();)
+	{
+		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
+			it = m_mBuildingCache.erase(it);
+		else
+			++it;
+	}
+	for (auto it = m_mEntityCache.begin(); it != m_mEntityCache.end();)
+	{
+		if (m_sActiveEntities.find(it->first) == m_sActiveEntities.end())
+			it = m_mEntityCache.erase(it);
+		else
+			++it;
 	}
 }
 

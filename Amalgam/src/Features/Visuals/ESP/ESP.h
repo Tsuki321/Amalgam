@@ -45,13 +45,17 @@ private:
 	void DrawPlayers();
 	void DrawBuildings();
 	void DrawWorld();
-	
+
 	bool GetDrawBounds(CBaseEntity* pEntity, float& x, float& y, float& w, float& h);
 	void DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, std::vector<int> vBones, Color_t tColor);
 
+	// Persistent caches - only rebuild entries that changed
 	std::unordered_map<CBaseEntity*, PlayerCache_t> m_mPlayerCache = {};
 	std::unordered_map<CBaseEntity*, BuildingCache_t> m_mBuildingCache = {};
 	std::unordered_map<CBaseEntity*, EntityCache_t> m_mEntityCache = {};
+
+	// Track which entities are active this frame to prune stale entries
+	std::unordered_set<CBaseEntity*> m_sActiveEntities = {};
 
 public:
 	void Store(CTFPlayer* pLocal);

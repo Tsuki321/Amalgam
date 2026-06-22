@@ -1113,6 +1113,11 @@ public:
 	std::vector<std::pair<std::string, Color_t>> Visible = { { "Original", Color_t() } };
 	std::vector<std::pair<std::string, Color_t>> Occluded = {};
 
+	// Precomputed hash caches for material lookup - updated when config changes
+	mutable std::vector<std::pair<uint32_t, Color_t>> m_vVisibleHashes = {};
+	mutable std::vector<std::pair<uint32_t, Color_t>> m_vOccludedHashes = {};
+	mutable bool m_bHashesDirty = true;
+
 	inline bool operator==(const Chams_t& t) const
 	{
 		return Visible == t.Visible && Occluded == t.Occluded;
@@ -1137,6 +1142,27 @@ public:
 	{
 		return !Occluded.empty() ? Occluded : s_vNone;
 	}
+
+	// Update hash caches when materials change
+	void UpdateHashes() const
+	{
+		if (!m_bHashesDirty)
+			return;
+
+		m_vVisibleHashes.clear();
+		m_vVisibleHashes.reserve(Visible.size());
+		for (auto& [sName, tColor] : Visible)
+			m_vVisibleHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+		m_vOccludedHashes.clear();
+		m_vOccludedHashes.reserve(Occluded.size());
+		for (auto& [sName, tColor] : Occluded)
+			m_vOccludedHashes.emplace_back(FNV1A::Hash32(sName.c_str()), tColor);
+
+		m_bHashesDirty = false;
+	}
+
+	void MarkDirty() { m_bHashesDirty = true; }
 };
 
 struct Glow_t

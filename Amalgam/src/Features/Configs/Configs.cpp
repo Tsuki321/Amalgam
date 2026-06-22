@@ -593,6 +593,13 @@ bool CConfigs::LoadConfig(const std::string& sConfigName, bool bNotify)
 
 				F::Groups.m_vGroups.push_back(tGroup);
 			}
+
+			// Invalidate hash caches after loading groups with new Chams_t configs
+			for (auto& tGroup : F::Groups.m_vGroups)
+			{
+				tGroup.m_tChams.MarkDirty();
+				tGroup.m_tBacktrackChams.MarkDirty();
+			}
 		}
 		else
 			SDK::Output("Amalgam", "Config groups not found", ERROR_COLOR, OUTPUT_CONSOLE | OUTPUT_TOAST | OUTPUT_MENU | OUTPUT_DEBUG, ICON_MD_CANCEL);
