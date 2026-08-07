@@ -82,8 +82,8 @@ public:
 	void StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Color_t tColorOut, EAlign eAlign, const wchar_t* wstr);
 
 	void Line(int x1, int y1, int x2, int y2, Color_t tColor);
-	void FillPolygon(std::vector<Vertex_t> vVertices, Color_t tColor);
-	void LinePolygon(std::vector<Vertex_t> vVertices, Color_t tColor);
+	void FillPolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor);
+	void LinePolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor);
 
 	void FillRect(int x, int y, int w, int h, Color_t tColor);
 	void LineRect(int x, int y, int w, int h, Color_t tColor);

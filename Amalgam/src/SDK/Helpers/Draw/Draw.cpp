@@ -90,12 +90,14 @@ Vec2 CDraw::GetTextSize(const wchar_t* text, const Font_t& tFont)
 }
 
 static wchar_t s_wstr[1024] = { '\0' };
+// outline offsets, drawn around the glyph before the foreground pass
+static constexpr int s_aOutline[8][2] = { { -1, 0 }, { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } };
 void CDraw::String(const Font_t& tFont, int x, int y, Color_t tColor, EAlign eAlign, const char* str)
 {
 	wsprintfW(s_wstr, L"%hs", str);
 	const auto dwFont = tFont.m_dwFont;
 
-	Vec2 vSize = GetTextSize(str, tFont);
+	Vec2 vSize = GetTextSize(s_wstr, tFont);
 	switch (eAlign)
 	{
 	case ALIGN_TOPLEFT: break;
@@ -160,23 +162,24 @@ void CDraw::StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Co
 	}
 
 	tColorOut.a *= Math::RemapVal(tColorOut.Brightness(), 0, 255, 0.5f, 0.1f);
+
+	// hoisted out of the outline loop: length and font are invariant across all 9 draws
+	const int nLen = int(wcslen(s_wstr));
+	I::MatSystemSurface->DrawSetTextFont(dwFont);
+
 	if (tColorOut.a)
 	{
-		std::vector<std::pair<int, int>> vOutline = { { -1, 0 }, { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } };
-
-		for (auto& [x2, y2] : vOutline)
+		I::MatSystemSurface->DrawSetTextColor(tColorOut);
+		for (const auto& [x2, y2] : s_aOutline)
 		{
 			I::MatSystemSurface->DrawSetTextPos(x + x2, y + y2);
-			I::MatSystemSurface->DrawSetTextFont(dwFont);
-			I::MatSystemSurface->DrawSetTextColor(tColorOut);
-			I::MatSystemSurface->DrawPrintText(s_wstr, int(wcslen(s_wstr)));
+			I::MatSystemSurface->DrawPrintText(s_wstr, nLen);
 		}
 	}
 
 	I::MatSystemSurface->DrawSetTextPos(x, y);
-	I::MatSystemSurface->DrawSetTextFont(dwFont);
 	I::MatSystemSurface->DrawSetTextColor(tColor);
-	I::MatSystemSurface->DrawPrintText(s_wstr, int(wcslen(s_wstr)));
+	I::MatSystemSurface->DrawPrintText(s_wstr, nLen);
 }
 void CDraw::StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Color_t tColorOut, EAlign eAlign, const wchar_t* wstr)
 {
@@ -200,23 +203,24 @@ void CDraw::StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Co
 	}
 	
 	tColorOut.a *= Math::RemapVal(tColorOut.Brightness(), 0, 255, 0.5f, 0.1f);
+
+	// hoisted out of the outline loop: length and font are invariant across all 9 draws
+	const int nLen = int(wcslen(wstr));
+	I::MatSystemSurface->DrawSetTextFont(dwFont);
+
 	if (tColorOut.a)
 	{
-		std::vector<std::pair<int, int>> vOutline = { { -1, 0 }, { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } };
-
-		for (auto& [x2, y2] : vOutline)
+		I::MatSystemSurface->DrawSetTextColor(tColorOut);
+		for (const auto& [x2, y2] : s_aOutline)
 		{
 			I::MatSystemSurface->DrawSetTextPos(x + x2, y + y2);
-			I::MatSystemSurface->DrawSetTextFont(dwFont);
-			I::MatSystemSurface->DrawSetTextColor(tColorOut);
-			I::MatSystemSurface->DrawPrintText(wstr, int(wcslen(wstr)));
+			I::MatSystemSurface->DrawPrintText(wstr, nLen);
 		}
 	}
 
 	I::MatSystemSurface->DrawSetTextPos(x, y);
-	I::MatSystemSurface->DrawSetTextFont(dwFont);
 	I::MatSystemSurface->DrawSetTextColor(tColor);
-	I::MatSystemSurface->DrawPrintText(wstr, int(wcslen(wstr)));
+	I::MatSystemSurface->DrawPrintText(wstr, nLen);
 }
 
 void CDraw::Line(int x1, int y1, int x2, int y2, Color_t tColor)
@@ -225,7 +229,7 @@ void CDraw::Line(int x1, int y1, int x2, int y2, Color_t tColor)
 	I::MatSystemSurface->DrawLine(x1, y1, x2, y2);
 }
 
-void CDraw::FillPolygon(std::vector<Vertex_t> vVertices, Color_t tColor)
+void CDraw::FillPolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor)
 {
 	static int iId = 0;
 	if (!I::MatSystemSurface->IsTextureIDValid(iId))
@@ -235,7 +239,7 @@ void CDraw::FillPolygon(std::vector<Vertex_t> vVertices, Color_t tColor)
 	I::MatSystemSurface->DrawSetTexture(iId);
 	I::MatSystemSurface->DrawTexturedPolygon(int(vVertices.size()), vVertices.data());
 }
-void CDraw::LinePolygon(std::vector<Vertex_t> vVertices, Color_t tColor)
+void CDraw::LinePolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor)
 {
 	static int iId = 0;
 	if (!I::MatSystemSurface->IsTextureIDValid(iId))

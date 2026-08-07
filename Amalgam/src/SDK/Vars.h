@@ -46,10 +46,15 @@ public:
 public:
 	size_t m_iType;
 
+	// typeid(T).hash_code() is a CRT call on MSVC, not a compile-time constant.
+	// Resolving it once per type keeps it out of the per-tick bind loop.
+	template <class T>
+	static inline const size_t TypeHash = typeid(T).hash_code();
+
 	template <class T>
 	inline ConfigVar<T>* As()
 	{
-		if (typeid(T).hash_code() != m_iType)
+		if (TypeHash<T> != m_iType)
 			return nullptr;
 
 		return reinterpret_cast<ConfigVar<T>*>(this);

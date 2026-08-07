@@ -106,9 +106,13 @@ MAKE_HOOK(CBaseEntity_SetAbsVelocity, S::CBaseEntity_SetAbsVelocity(), void,
 
 		FloatRange_t flVelocityRange;
 		{
-			std::deque<float> vDeltas = { flNewPos1 - flOldPos1, flNewPos2 - flOldPos1, flNewPos1 - flOldPos2, flNewPos2 - flOldPos2 };
-			std::sort(vDeltas.begin(), vDeltas.end(), std::less<float>());
-			flVelocityRange = { vDeltas.front() / flDeltaTime, vDeltas.back() / flDeltaTime };
+			// min/max of the four candidate deltas; a sorted container here would
+			// allocate twice per axis per player just to read front() and back()
+			const float flDeltaA = flNewPos1 - flOldPos1, flDeltaB = flNewPos2 - flOldPos1;
+			const float flDeltaC = flNewPos1 - flOldPos2, flDeltaD = flNewPos2 - flOldPos2;
+			const float flLow = std::min(std::min(flDeltaA, flDeltaB), std::min(flDeltaC, flDeltaD));
+			const float flHigh = std::max(std::max(flDeltaA, flDeltaB), std::max(flDeltaC, flDeltaD));
+			flVelocityRange = { flLow / flDeltaTime, flHigh / flDeltaTime };
 		}
 
 		for (auto& tRecord : *pRecords)

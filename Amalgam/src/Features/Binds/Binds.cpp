@@ -4,15 +4,15 @@
 #include "../Configs/Configs.h"
 #include <functional>
 
-#define IsType(t) pBase->m_iType == typeid(t).hash_code()
+#define IsType(t) pBase->m_iType == BaseVar::TypeHash<t>
 
 template <class T>
 static inline void SetMain(BaseVar*& pBase, int iBind)
 {
 	auto pVar = pBase->As<T>();
 
-	if (pVar->Map.contains(iBind))
-		pVar->Value = pVar->Map[iBind];
+	if (auto it = pVar->Map.find(iBind); it != pVar->Map.end())
+		pVar->Value = it->second;
 }
 #define Set(t, b) if (IsType(t)) SetMain<t>(pBase, b);
 
@@ -24,10 +24,12 @@ static inline void LoopVars(int iBind, std::vector<BaseVar*>& vVars = G::Vars)
 	const bool bDefault = iBind == DEFAULT_BIND;
 	for (auto pBase : vVars)
 	{
-		if (s_mVars.contains(pBase) || pBase->m_iFlags & (NOSAVE | NOBIND) && !bDefault)
+		if (pBase->m_iFlags & (NOSAVE | NOBIND) && !bDefault)
+			continue;
+		// single lookup: insert reports whether this var was already visited
+		if (!s_mVars.insert({ pBase, true }).second)
 			continue;
 
-		s_mVars[pBase];
 		Set(bool, iBind)
 		else Set(int, iBind)
 		else Set(float, iBind)

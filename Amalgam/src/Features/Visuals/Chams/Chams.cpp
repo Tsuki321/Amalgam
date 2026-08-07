@@ -20,9 +20,6 @@ void CChams::End()
 
 void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderContext* pRenderContext, int iModel, bool bTwoModel)
 {
-	if (!m_iFlags && iModel == ModelEnum::Visible)
-		m_mEntities[pEntity->entindex()];
-
 	bool bOccluded = !tChams.Occluded.empty();
 	bool bSame = tChams.Visible == tChams.Occluded;
 	bTwoModel &= bOccluded && !bSame;
@@ -217,7 +214,6 @@ void CChams::RenderMain()
 	if (!pRenderContext)
 		return;
 
-	m_mEntities.clear();
 	if (m_vEntities.empty())
 		return;
 

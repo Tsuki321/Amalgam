@@ -330,10 +330,15 @@ void CEntities::Clear(bool bShutdown)
 	m_hLocalWeapon = CHandle<CTFWeaponBase>();
 	m_pPlayerResource = nullptr;
 	m_iLocalPlayerIndex = 0;
-	m_aGroups = {};
+	// clear() retains each vector's capacity — this runs every net update, and the
+	// group sizes are near-constant frame to frame, so releasing the buffers here
+	// only forces Store() to re-grow them from zero every tick
+	for (auto& vGroup : m_aGroups)
+		vGroup.clear();
 
 	if (bShutdown)
 	{
+		m_aGroups = {};
 		m_aDeltaTimes = {};
 		m_aLagTimes = {};
 		m_aChokes = {};
