@@ -24,6 +24,7 @@ static std::map<std::string, int> s_mTraceCount = {};
 static inline std::vector<Target_t> GetTargets(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 {
 	std::vector<Target_t> vTargets;
+	vTargets.reserve(64); // avoid geometric regrowth while scanning entity groups
 
 	const Vec3 vLocalPos = F::Ticks.GetShootPos();
 	const Vec3 vLocalAngles = I::EngineClient->GetViewAngles();
@@ -470,7 +471,11 @@ static inline void DrawTrace(bool bSuccess, Color_t tColor, CGameTrace& trace)
 };
 #endif
 
-static inline void HandleTrace(const Vec3& vPoint, std::vector<Setup_t>& vPoints, const Vec3& vTargetEye, Info_t& tInfo, std::function<bool()> fCheckPointTrace, std::function<bool()> fCheckPointAir, CGameTrace& trace, ITraceFilter& filter, int i = 0)
+// callables are templated rather than std::function: this runs per splash sample
+// point, and by-value std::function params copy-constructed two type-erased
+// objects per call while also blocking inlining of the predicates
+template <class FTrace, class FAir>
+static inline void HandleTrace(const Vec3& vPoint, std::vector<Setup_t>& vPoints, const Vec3& vTargetEye, Info_t& tInfo, FTrace&& fCheckPointTrace, FAir&& fCheckPointAir, CGameTrace& trace, ITraceFilter& filter, int i = 0)
 {
 	// out
 	SDK::TraceHull(vTargetEye, vPoint, -tInfo.m_vHull, tInfo.m_vHull, MASK_SOLID, &filter, &trace);
@@ -821,11 +826,14 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 
 	if (bSort)
 	{
-		std::sort(vPoints.begin(), vPoints.end(), [&](const auto& a, const auto& b) -> bool
+		// only the nearest iLimit points survive the resize below, so ordering the
+		// tail is wasted work — n can reach the hundreds in face-sampling mode
+		const int iKeep = std::min(iLimit, int(vPoints.size()));
+		std::partial_sort(vPoints.begin(), vPoints.begin() + iKeep, vPoints.end(), [&](const auto& a, const auto& b) -> bool
 		{
 			return a.m_vPoint.DistToSqr(vOrigin) < b.m_vPoint.DistToSqr(vOrigin);
 		});
-		vPoints.resize(std::min(iLimit, int(vPoints.size())));
+		vPoints.resize(iKeep);
 	}
 
 	const Vec3 vOriginal = m_tInfo.m_pTarget->m_pEntity->GetAbsOrigin();

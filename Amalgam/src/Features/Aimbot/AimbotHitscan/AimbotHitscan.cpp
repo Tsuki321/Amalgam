@@ -11,6 +11,7 @@
 static inline std::vector<Target_t> GetTargets(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 {
 	std::vector<Target_t> vTargets;
+	vTargets.reserve(64); // avoid geometric regrowth while scanning entity groups
 
 	Vec3 vLocalPos = F::Ticks.GetShootPos();
 	Vec3 vLocalAngles = I::EngineClient->GetViewAngles();

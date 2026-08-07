@@ -24,6 +24,11 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 	bool bSame = tChams.Visible == tChams.Occluded;
 	bTwoModel &= bOccluded && !bSame;
 
+	// Reject before Begin(): these paths used to return from inside the switch,
+	// skipping End() and leaking the saved color/blend/material override.
+	if (!bTwoModel && (iModel == ModelEnum::Visible ? bSame : !bOccluded))
+		return;
+
 	// Update hashes once for both passes
 	tChams.UpdateHashes();
 
@@ -32,12 +37,7 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 	{
 	case ModelEnum::Visible:
 	{
-		if (!bTwoModel)
-		{
-			if (bSame)
-				return;
-		}
-		else
+		if (bTwoModel)
 		{
 			pRenderContext->SetStencilEnable(true);
 			pRenderContext->SetStencilCompareFunction(STENCILCOMPARISONFUNCTION_ALWAYS);
@@ -79,12 +79,7 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 	}
 	case ModelEnum::Occluded:
 	{
-		if (!bTwoModel)
-		{
-			if (!bOccluded)
-				return;
-		}
-		else
+		if (bTwoModel)
 		{
 			pRenderContext->SetStencilEnable(true);
 			pRenderContext->SetStencilCompareFunction(STENCILCOMPARISONFUNCTION_EQUAL);

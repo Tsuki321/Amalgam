@@ -161,15 +161,15 @@ void CEntities::Store()
 	std::unordered_map<uint32_t, int> mLevels = {};
 	if (bUpdateInfo)
 	{
-		m_mIPriorities.clear();
+		m_aIPriorities.fill(0);
 		m_mUPriorities.clear();
-		m_mIFriends.clear();
+		m_aIFriends.fill(false);
 		m_mUFriends.clear();
-		m_mIParty.clear();
+		m_aIParty.fill(0);
 		m_mUParty.clear();
-		m_mIF2P.clear();
+		m_aIF2P.fill(false);
 		m_mUF2P.clear();
-		m_mILevels.clear();
+		m_aILevels.fill(-2); // -2 is the "unknown level" sentinel GetLevel reports
 		m_mULevels.clear();
 
 		if (auto pLobby = I::TFGCClientSystem->GetLobby())
@@ -239,11 +239,11 @@ void CEntities::Store()
 				uint32_t uAccountID = pResource->m_iAccountID(n);
 				if (bLocal) m_uAccountID = uAccountID;
 
-				m_mIPriorities[n] = m_mUPriorities[uAccountID] = !bLocal ? F::PlayerUtils.GetPriority(uAccountID, false) : 0;
-				m_mIFriends[n] = m_mUFriends[uAccountID] = !pResource->IsFakePlayer(n) ? I::SteamFriends->HasFriend({ uAccountID, 1, k_EUniversePublic, k_EAccountTypeIndividual }, k_EFriendFlagImmediate) : false;
-				m_mIParty[n] = m_mUParty[uAccountID] = mParties.contains(uAccountID) ? mParties[uAccountID] : 0;
-				m_mIF2P[n] = m_mUF2P[uAccountID] = mF2P.contains(uAccountID) ? mF2P[uAccountID] : false;
-				m_mILevels[n] = m_mULevels[uAccountID] = mLevels.contains(uAccountID) ? mLevels[uAccountID] : -2;
+				m_aIPriorities[n] = m_mUPriorities[uAccountID] = !bLocal ? F::PlayerUtils.GetPriority(uAccountID, false) : 0;
+				m_aIFriends[n] = m_mUFriends[uAccountID] = !pResource->IsFakePlayer(n) ? I::SteamFriends->HasFriend({ uAccountID, 1, k_EUniversePublic, k_EAccountTypeIndividual }, k_EFriendFlagImmediate) : false;
+				m_aIParty[n] = m_mUParty[uAccountID] = mParties.contains(uAccountID) ? mParties[uAccountID] : 0;
+				m_aIF2P[n] = m_mUF2P[uAccountID] = mF2P.contains(uAccountID) ? mF2P[uAccountID] : false;
+				m_aILevels[n] = m_mULevels[uAccountID] = mLevels.contains(uAccountID) ? mLevels[uAccountID] : -2;
 			}
 		}
 
@@ -543,16 +543,16 @@ std::deque<VelFixRecord>* CEntities::GetOrigins(uint16_t iIndex) { return iIndex
 uint32_t CEntities::GetModel(unsigned short iIndex) { return iIndex < MAX_EDICTS ? m_aModels[iIndex] : 0; }
 DormantData* CEntities::GetDormancy(unsigned short iIndex) { return s_mDormancy.contains(iIndex) ? &s_mDormancy[iIndex] : nullptr; }
 
-int CEntities::GetPriority(int iIndex) { return m_mIPriorities[iIndex]; }
+int CEntities::GetPriority(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIPriorities[iIndex] : 0; }
 int CEntities::GetPriority(uint32_t uAccountID) { return m_mUPriorities[uAccountID]; }
-bool CEntities::IsFriend(int iIndex) { return m_mIFriends[iIndex]; }
+bool CEntities::IsFriend(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIFriends[iIndex] : false; }
 bool CEntities::IsFriend(uint32_t uAccountID) { return m_mUFriends[uAccountID]; }
-bool CEntities::InParty(int iIndex) { return iIndex != I::EngineClient->GetLocalPlayer() && m_mIParty[iIndex] == 1; }
+bool CEntities::InParty(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS && iIndex != I::EngineClient->GetLocalPlayer() && m_aIParty[iIndex] == 1; }
 bool CEntities::InParty(uint32_t uAccountID) { return uAccountID != m_uAccountID && m_mUParty[uAccountID] == 1; }
-bool CEntities::IsF2P(int iIndex) { return m_mIF2P[iIndex]; }
+bool CEntities::IsF2P(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIF2P[iIndex] : false; }
 bool CEntities::IsF2P(uint32_t uAccountID) { return m_mUF2P[uAccountID]; }
-int CEntities::GetLevel(int iIndex) { return m_mILevels.contains(iIndex) ? m_mILevels[iIndex] : -2; }
+int CEntities::GetLevel(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aILevels[iIndex] : -2; }
 int CEntities::GetLevel(uint32_t uAccountID) { return m_mULevels.contains(uAccountID) ? m_mULevels[uAccountID] : -2; }
-int CEntities::GetParty(int iIndex) { return m_mIParty.contains(iIndex) ? m_mIParty[iIndex] : 0; }
+int CEntities::GetParty(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIParty[iIndex] : 0; }
 int CEntities::GetParty(uint32_t uAccountID) { return m_mUParty.contains(uAccountID) ? m_mUParty[uAccountID] : 0; }
 int CEntities::GetPartyCount() { return m_iPartyCount; }

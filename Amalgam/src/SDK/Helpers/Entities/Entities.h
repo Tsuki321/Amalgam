@@ -45,15 +45,18 @@ private:
 	std::array<std::deque<VelFixRecord>, MAX_PLAYERS> m_aOrigins = {};
 	std::array<uint32_t, MAX_EDICTS> m_aModels = {};
 
-	std::unordered_map<int, int> m_mIPriorities = {};
+	// Player-index-keyed data is a dense 1..MAX_PLAYERS range, so it lives in flat
+	// arrays: no hashing, and reads can't insert nodes the way operator[] did.
+	// The AccountID-keyed mirrors stay maps since that key space is sparse.
+	std::array<int, MAX_PLAYERS> m_aIPriorities = {};
 	std::unordered_map<uint32_t, int> m_mUPriorities = {};
-	std::unordered_map<int, bool> m_mIFriends = {};
+	std::array<bool, MAX_PLAYERS> m_aIFriends = {};
 	std::unordered_map<uint32_t, bool> m_mUFriends = {};
-	std::unordered_map<int, int> m_mIParty = {};
+	std::array<int, MAX_PLAYERS> m_aIParty = {};
 	std::unordered_map<uint32_t, int> m_mUParty = {};
-	std::unordered_map<int, bool> m_mIF2P = {};
+	std::array<bool, MAX_PLAYERS> m_aIF2P = {};
 	std::unordered_map<uint32_t, bool> m_mUF2P = {};
-	std::unordered_map<int, int> m_mILevels = {};
+	std::array<int, MAX_PLAYERS> m_aILevels = {};
 	std::unordered_map<uint32_t, int> m_mULevels = {};
 	uint32_t m_uAccountID;
 	int m_iPartyCount = 0;

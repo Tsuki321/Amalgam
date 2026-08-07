@@ -25,6 +25,7 @@ static inline bool AimFriendlyBuilding(CBaseObject* pBuilding)
 static inline std::vector<Target_t> GetTargets(CTFPlayer* pLocal, CTFWeaponBase* pWeapon)
 {
 	std::vector<Target_t> vTargets;
+	vTargets.reserve(64); // avoid geometric regrowth while scanning entity groups
 
 	const Vec3 vLocalPos = F::Ticks.GetShootPos();
 	const Vec3 vLocalAngles = I::EngineClient->GetViewAngles();
@@ -673,6 +674,7 @@ bool CAimbotMelee::RunSapper(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd
 	const Vec3 vLocalAngles = I::EngineClient->GetViewAngles();
 
 	std::vector<Target_t> vTargets;
+	vTargets.reserve(64); // avoid geometric regrowth while scanning entity groups
 	for (auto pEntity : H::Entities.GetGroup(EntityEnum::BuildingEnemy))
 	{
 		if (F::AimbotGlobal.ShouldIgnore(pEntity, pLocal, pWeapon))

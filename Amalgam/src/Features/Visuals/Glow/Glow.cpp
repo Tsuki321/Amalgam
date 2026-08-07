@@ -169,7 +169,14 @@ void CGlow::RenderFirst()
 {
 	auto pRenderContext = I::MaterialSystem->GetRenderContext();
 	if (!pRenderContext || !m_pMatGlowColor || !m_pMatBlurX || !m_pMatBlurY || !m_pMatHaloAddToScreen)
-		return F::Materials.ReloadMaterials();
+	{	// defer: reloading here would unload + rescan materials from disk mid-frame,
+		// every frame, for as long as a material stays null
+		F::Materials.m_bReloadPending = true;
+		return;
+	}
+
+	if (m_mEntities.empty())
+		return;
 
 	FirstBegin(pRenderContext);
 	for (auto& [tGlow, vInfo] : m_mEntities)
@@ -188,11 +195,19 @@ void CGlow::RenderSecond()
 {
 	auto pRenderContext = I::MaterialSystem->GetRenderContext();
 	if (!pRenderContext || !m_pMatGlowColor || !m_pMatBlurX || !m_pMatBlurY || !m_pMatHaloAddToScreen)
-		return F::Materials.ReloadMaterials();
+	{	// see RenderFirst: defer to end of frame rather than reloading mid-render
+		F::Materials.m_bReloadPending = true;
+		return;
+	}
 
 	const int w = H::Draw.m_nScreenW, h = H::Draw.m_nScreenH;
 	for (auto& [tGlow, vInfo] : m_mEntities)
 	{
+		// nothing to composite for this bucket: skip the render-target push,
+		// the clear, and a full model re-draw per entity
+		if (!tGlow.Stencil && !tGlow.Blur)
+			continue;
+
 		SecondBegin(pRenderContext, w, h);
 		for (auto& tInfo : vInfo)
 		{
