@@ -229,7 +229,7 @@ void CDraw::Line(int x1, int y1, int x2, int y2, Color_t tColor)
 	I::MatSystemSurface->DrawLine(x1, y1, x2, y2);
 }
 
-void CDraw::FillPolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor)
+void CDraw::FillPolygon(std::vector<Vertex_t>& vVertices, Color_t tColor)
 {
 	static int iId = 0;
 	if (!I::MatSystemSurface->IsTextureIDValid(iId))

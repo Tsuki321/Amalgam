@@ -42,13 +42,13 @@ void COffscreenArrows::DrawArrowTo(const Vec3& vFromPos, const Vec3& vToPos, Col
 	Vec2 v1 = { 0, flScale / 2 },
 		v2 = { 0, -flScale / 2 },
 		v3 = { -flScale * sqrt(3.f) / 2, 0 };
-	H::Draw.FillPolygon(
-		{
-			{ { vPos.x + v1.x * flCos - v1.y * flSin, vPos.y + v1.y * flCos + v1.x * flSin } },
-			{ { vPos.x + v2.x * flCos - v2.y * flSin, vPos.y + v2.y * flCos + v2.x * flSin } },
-			{ { vPos.x + v3.x * flCos - v3.y * flSin, vPos.y + v3.y * flCos + v3.x * flSin } }
-		}, tColor
-	);
+	std::vector<Vertex_t> vVertices =
+	{
+		{ { vPos.x + v1.x * flCos - v1.y * flSin, vPos.y + v1.y * flCos + v1.x * flSin } },
+		{ { vPos.x + v2.x * flCos - v2.y * flSin, vPos.y + v2.y * flCos + v2.x * flSin } },
+		{ { vPos.x + v3.x * flCos - v3.y * flSin, vPos.y + v3.y * flCos + v3.x * flSin } }
+	};
+	H::Draw.FillPolygon(vVertices, tColor);
 }
 
 void COffscreenArrows::Store()
