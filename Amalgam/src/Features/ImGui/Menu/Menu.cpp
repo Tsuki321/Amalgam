@@ -262,6 +262,14 @@ void CMenu::MenuAimbot(int iTab)
 						FSlider(Vars::Aimbot::Hitscan::TapfireDistance);
 					}
 					PopTransparent();
+					PushTransparent(Vars::Aimbot::General::AimType.Value != Vars::Aimbot::General::AimTypeEnum::Smooth
+						&& Vars::Aimbot::General::AimType.Value != Vars::Aimbot::General::AimTypeEnum::Assistive);
+					{
+						FDropdown(Vars::Aimbot::Hitscan::TargetSwitch, FDropdownEnum::None, 0, &Hovered); FTooltip("Keep the current target in Smooth or Assistive mode. After losing it, wait before aiming at another target. Weapon interval uses the time between primary shots.", Hovered);
+						if (Vars::Aimbot::Hitscan::TargetSwitch.Value == Vars::Aimbot::Hitscan::TargetSwitchEnum::FixedDelay)
+							FSlider(Vars::Aimbot::Hitscan::TargetSwitchDelay);
+					}
+					PopTransparent();
 				} EndSection();
 				if (Vars::Debug::Options.Value)
 				{

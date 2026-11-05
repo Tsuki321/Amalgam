@@ -27,11 +27,16 @@ private:
 	bool ShouldFire(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd, const Target_t& tTarget);
 
 	Vec3 m_vEyePos = {};
+	CBaseHandle m_hTarget, m_hWeapon, m_hLocal;
+	int m_iSpawnCounter = -1;
+	float m_flNextTargetTime = -1.f;
+	float m_flLastRunTime = 0.f;
 
 	matrix3x4 m_mMatrix = { { 1, 0, 0, 0 }, { 0, 1, 0, 0 }, { 0, 0, 1, 0 } };
 	matrix3x4 m_mHullMatrix = { { 1, 0, 0, 0 }, { 0, 1, 0, 0 }, { 0, 0, 1, 0 } };
 
 public:
+	void ResetTarget();
 	void Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd);
 };
 

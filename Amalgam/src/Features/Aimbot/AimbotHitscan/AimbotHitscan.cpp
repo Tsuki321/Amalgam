@@ -696,9 +696,37 @@ static inline void DrawVisuals(CTFPlayer* pLocal, Target_t& tTarget, int nWeapon
 	}
 }
 
+void CAimbotHitscan::ResetTarget()
+{
+	m_hTarget.Term();
+	m_hWeapon.Term();
+	m_hLocal.Term();
+	m_iSpawnCounter = -1;
+	m_flNextTargetTime = -1.f;
+	m_flLastRunTime = 0.f;
+}
+
 void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd)
 {
+	if (!pLocal || !pWeapon || !pCmd || !I::GlobalVars)
+		return ResetTarget();
+
 	const int nWeaponID = pWeapon->GetWeaponID();
+	bool bTargetDelay = !F::Aimbot.m_bRunningSecondary && nWeaponID != TF_WEAPON_MEDIGUN
+		&& Vars::Aimbot::Hitscan::TargetSwitch.Value != Vars::Aimbot::Hitscan::TargetSwitchEnum::Off
+		&& (Vars::Aimbot::General::AimType.Value == Vars::Aimbot::General::AimTypeEnum::Smooth
+			|| Vars::Aimbot::General::AimType.Value == Vars::Aimbot::General::AimTypeEnum::Assistive);
+	float flCurTime = I::GlobalVars->curtime;
+	if (!F::Aimbot.m_bRunningSecondary)
+	{
+		if (!bTargetDelay || m_hWeapon != pWeapon->GetRefEHandle() || m_hLocal != pLocal->GetRefEHandle()
+			|| m_iSpawnCounter != pLocal->m_iSpawnCounter() || flCurTime < m_flLastRunTime)
+			ResetTarget();
+		m_hWeapon = pWeapon->GetRefEHandle();
+		m_hLocal = pLocal->GetRefEHandle();
+		m_iSpawnCounter = pLocal->m_iSpawnCounter();
+		m_flLastRunTime = flCurTime;
+	}
 
 	static int iStaticAimType = Vars::Aimbot::General::AimType.Value;
 	const int iLastAimType = iStaticAimType;
@@ -728,8 +756,9 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 		break;
 	}
 
-	auto vTargets = F::AimbotGlobal.ManageTargets(GetTargets, pLocal, pWeapon);
-	if (vTargets.empty())
+	bool bLockedTarget = bTargetDelay && m_hTarget.IsValid();
+	auto vTargets = bLockedTarget ? GetTargets(pLocal, pWeapon) : F::AimbotGlobal.ManageTargets(GetTargets, pLocal, pWeapon);
+	if (vTargets.empty() && !bLockedTarget)
 		return;
 
 	switch (nWeaponID)
@@ -754,6 +783,45 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			pCmd->buttons |= IN_ATTACK;
 	}
 
+	int iLockedHit = 0;
+	if (bLockedTarget)
+	{
+		auto it = std::find_if(vTargets.begin(), vTargets.end(), [&](const Target_t& tTarget)
+		{
+			return tTarget.m_pEntity && tTarget.m_pEntity->GetRefEHandle() == m_hTarget;
+		});
+		if (it != vTargets.end())
+			iLockedHit = CanHit(*it, pLocal, pWeapon);
+
+		if (iLockedHit)
+		{
+			vTargets.front() = *it;
+			vTargets.resize(1);
+			m_flNextTargetTime = -1.f;
+		}
+		else
+		{
+			if (m_flNextTargetTime < 0.f)
+			{
+				float flDelay = Vars::Aimbot::Hitscan::TargetSwitch.Value == Vars::Aimbot::Hitscan::TargetSwitchEnum::FixedDelay
+					? Vars::Aimbot::Hitscan::TargetSwitchDelay.Value / 1000.f : pWeapon->GetFireRate();
+				m_flNextTargetTime = flCurTime + std::max(flDelay, 0.f);
+				if (Vars::Aimbot::Hitscan::TargetSwitch.Value == Vars::Aimbot::Hitscan::TargetSwitchEnum::WeaponInterval)
+					m_flNextTargetTime = std::max(m_flNextTargetTime, pWeapon->m_flNextPrimaryAttack());
+			}
+			if (flCurTime < m_flNextTargetTime)
+				return;
+
+			m_hTarget.Term();
+			m_flNextTargetTime = -1.f;
+			F::AimbotGlobal.SortTargetsPre(vTargets, Vars::Aimbot::General::TargetSelection.Value);
+			vTargets.resize(std::min(size_t(Vars::Aimbot::General::MaxTargets.Value), vTargets.size()));
+			F::AimbotGlobal.SortTargetsPost(vTargets, Vars::Aimbot::General::TargetSelection.Value);
+		}
+	}
+	if (vTargets.empty())
+		return;
+
 	if (!G::AimTarget.m_iEntIndex)
 		G::AimTarget = { vTargets.front().m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };
 
@@ -766,8 +834,13 @@ void CAimbotHitscan::Run(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pC
 			return;
 		}
 
-		const auto iResult = CanHit(tTarget, pLocal, pWeapon);
+		const auto iResult = iLockedHit ? iLockedHit : CanHit(tTarget, pLocal, pWeapon);
 		if (!iResult) continue;
+		if (bTargetDelay)
+		{
+			m_hTarget = tTarget.m_pEntity->GetRefEHandle();
+			m_flNextTargetTime = -1.f;
+		}
 		if (iResult == 2)
 		{
 			G::AimTarget = { tTarget.m_pEntity->entindex(), I::GlobalVars->tickcount, 0 };

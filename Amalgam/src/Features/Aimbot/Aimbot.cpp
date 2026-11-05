@@ -57,7 +57,12 @@ void CAimbot::RunMain(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, CUserCmd* pCmd)
 
 	F::AutoRocketJump.Run(pLocal, pWeapon, pCmd);
 	if (!ShouldRun(pLocal, pWeapon, pCmd))
+	{
+		F::AimbotHitscan.ResetTarget();
 		return;
+	}
+	if (G::PrimaryWeaponType != EWeaponType::HITSCAN)
+		F::AimbotHitscan.ResetTarget();
 
 	F::AutoDetonate.Run(pLocal, pCmd);
 	F::AutoAirblast.Run(pLocal, pWeapon, pCmd);

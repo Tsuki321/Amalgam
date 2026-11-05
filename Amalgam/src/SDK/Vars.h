@@ -299,6 +299,10 @@ NAMESPACE_BEGIN(Vars)
 				Tapfire = 1 << 0, WaitForHeadshot = 1 << 1, WaitForCharge = 1 << 2, ScopedOnly = 1 << 3, AutoScope = 1 << 4, AutoRev = 1 << 5, ExtinguishTeam = 1 << 6);
 			CVar(MultipointScale, "Multipoint scale", 0.f, SLIDER_CLAMP | SLIDER_PRECISION, 0.f, 100.f, 5.f, "%g%%");
 			CVar(TapfireDistance, "Tapfire distance", 1000.f, SLIDER_MIN | SLIDER_PRECISION, 250.f, 1000.f, 50.f);
+			CVarEnum(TargetSwitch, "Target switch delay", 1, NONE, nullptr,
+				VA_LIST("Off", "Weapon interval", "Fixed delay"),
+				Off, WeaponInterval, FixedDelay);
+			CVar(TargetSwitchDelay, "Switch delay", 250, SLIDER_CLAMP, 0, 2000, 25, "%i ms");
 
 			CVarEnum(PeekCheck, "Peek check", 1, NOSAVE | DEBUGVAR, nullptr,
 				VA_LIST("Off", "Doubletap only", "Always"),
