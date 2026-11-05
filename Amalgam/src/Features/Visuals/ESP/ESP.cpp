@@ -1069,12 +1069,12 @@ bool CESP::GetDrawBounds(CBaseEntity* pEntity, float& x, float& y, float& w, flo
 	return !(x > H::Draw.m_nScreenW || x + w < 0 || y > H::Draw.m_nScreenH || y + h < 0);
 }
 
-void CESP::DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, std::vector<int> vBones, Color_t tColor)
+void CESP::DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, std::initializer_list<int> vBones, Color_t tColor)
 {
 	for (size_t n = 1; n < vBones.size(); n++)
 	{
-		auto vBone1 = pPlayer->GetHitboxCenter(aBones, vBones[n]);
-		auto vBone2 = pPlayer->GetHitboxCenter(aBones, vBones[n - 1]);
+		auto vBone1 = pPlayer->GetHitboxCenter(aBones, vBones.begin()[n]);
+		auto vBone2 = pPlayer->GetHitboxCenter(aBones, vBones.begin()[n - 1]);
 
 		Vec3 vScreen1, vScreen2;
 		if (SDK::W2S(vBone1, vScreen1) && SDK::W2S(vBone2, vScreen2))

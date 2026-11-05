@@ -797,30 +797,25 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 	int iLimit = !bFirst ? m_tInfo.m_iSplashRestrict : std::max(m_tInfo.m_iSplashRestrict, Vars::Aimbot::Projectile::SplashRestrictFirst.Value);
 	bool bSort = !bLob || !m_tInfo.m_bIgnoreTiming;
 
-	for (auto it = vSplashPoints.begin(); it != vSplashPoints.end();)
+	bool bLimitReached = false;
+	auto itEnd = std::remove_if(vSplashPoints.begin(), vSplashPoints.end(), [&](const Setup_t& tSetup)
 	{
-		Point_t tPoint = { it->m_vPoint, {}, it->m_iType };
+		if (bLimitReached)
+			return false;
+
+		Point_t tPoint = { tSetup.m_vPoint, {}, tSetup.m_iType };
 
 		CalculateAngle(m_tInfo.m_vLocalEye, tPoint.m_vPoint, iSimTime, tPoint.m_tSolution, iFlags, iTolerance);
 		if (tPoint.m_tSolution.m_iCalculated != CalculateResultEnum::Good)
-		{
-			if (tPoint.m_tSolution.m_iCalculated == CalculateResultEnum::Bad)
-				it = vSplashPoints.erase(it);
-			else
-				++it;
-			continue;
-		}
+			return tPoint.m_tSolution.m_iCalculated == CalculateResultEnum::Bad;
 		else if (tPoint.m_iType == PointTypeEnum::Air && tPoint.m_tSolution.m_flTime < TICKS_TO_TIME(m_tInfo.m_iArmTime))
-		{
-			it = vSplashPoints.erase(it);
-			continue;
-		}
+			return true;
 
 		vPoints.push_back(tPoint);
-		it = vSplashPoints.erase(it);
-		if (!bSort && vPoints.size() == iLimit)
-			break;
-	}
+		bLimitReached = !bSort && vPoints.size() == iLimit;
+		return true;
+	});
+	vSplashPoints.erase(itEnd, vSplashPoints.end());
 	if (vPoints.empty())
 		return vPoints;
 
@@ -838,9 +833,8 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 
 	const Vec3 vOriginal = m_tInfo.m_pTarget->m_pEntity->GetAbsOrigin();
 	m_tInfo.m_pTarget->m_pEntity->SetAbsOrigin(vOrigin);
-	for (auto it = vPoints.begin(); it != vPoints.end();)
+	auto itValidEnd = std::remove_if(vPoints.begin(), vPoints.end(), [&](const Point_t& tPoint)
 	{
-		auto& tPoint = *it;
 		bool bValid = tPoint.m_tSolution.m_iCalculated != CalculateResultEnum::Pending;
 		if (bValid)
 		{
@@ -849,11 +843,9 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 			bValid = tPoint.m_vPoint.DistToSqr(vPos) < flRadiusSqrCheck;
 		}
 
-		if (bValid)
-			++it;
-		else
-			it = vPoints.erase(it);
-	}
+		return !bValid;
+	});
+	vPoints.erase(itValidEnd, vPoints.end());
 	m_tInfo.m_pTarget->m_pEntity->SetAbsOrigin(vOriginal);
 
 	return vPoints;

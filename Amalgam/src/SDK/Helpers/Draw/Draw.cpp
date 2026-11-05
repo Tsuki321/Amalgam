@@ -97,7 +97,7 @@ void CDraw::String(const Font_t& tFont, int x, int y, Color_t tColor, EAlign eAl
 	wsprintfW(s_wstr, L"%hs", str);
 	const auto dwFont = tFont.m_dwFont;
 
-	Vec2 vSize = GetTextSize(s_wstr, tFont);
+	Vec2 vSize = eAlign == ALIGN_TOPLEFT ? Vec2() : GetTextSize(s_wstr, tFont);
 	switch (eAlign)
 	{
 	case ALIGN_TOPLEFT: break;
@@ -120,7 +120,7 @@ void CDraw::String(const Font_t& tFont, int x, int y, Color_t tColor, EAlign eAl
 {
 	const auto dwFont = tFont.m_dwFont;
 
-	Vec2 vSize = GetTextSize(wstr, tFont);
+	Vec2 vSize = eAlign == ALIGN_TOPLEFT ? Vec2() : GetTextSize(wstr, tFont);
 	switch (eAlign)
 	{
 	case ALIGN_TOPLEFT: break;
@@ -147,7 +147,7 @@ void CDraw::StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Co
 	wsprintfW(s_wstr, L"%hs", str);
 	const auto dwFont = tFont.m_dwFont;
 
-	Vec2 vSize = GetTextSize(s_wstr, tFont);
+	Vec2 vSize = eAlign == ALIGN_TOPLEFT ? Vec2() : GetTextSize(s_wstr, tFont);
 	switch (eAlign)
 	{
 	case ALIGN_TOPLEFT: break;
@@ -188,7 +188,7 @@ void CDraw::StringOutlined(const Font_t& tFont, int x, int y, Color_t tColor, Co
 
 	const auto dwFont = tFont.m_dwFont;
 
-	Vec2 vSize = GetTextSize(wstr, tFont);
+	Vec2 vSize = eAlign == ALIGN_TOPLEFT ? Vec2() : GetTextSize(wstr, tFont);
 	switch (eAlign)
 	{
 	case ALIGN_TOPLEFT: break;
