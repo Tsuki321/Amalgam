@@ -83,6 +83,7 @@ public:
 
 	void Line(int x1, int y1, int x2, int y2, Color_t tColor);
 	void FillPolygon(std::vector<Vertex_t>& vVertices, Color_t tColor);
+	void FillPolygon(Vertex_t* pVertices, int iCount, Color_t tColor);
 	void LinePolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor);
 
 	void FillRect(int x, int y, int w, int h, Color_t tColor);

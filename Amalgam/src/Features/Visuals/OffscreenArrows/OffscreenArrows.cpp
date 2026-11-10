@@ -42,40 +42,38 @@ void COffscreenArrows::DrawArrowTo(const Vec3& vFromPos, const Vec3& vToPos, Col
 	Vec2 v1 = { 0, flScale / 2 },
 		v2 = { 0, -flScale / 2 },
 		v3 = { -flScale * sqrt(3.f) / 2, 0 };
-	std::vector<Vertex_t> vVertices =
+	Vertex_t aVertices[] =
 	{
 		{ { vPos.x + v1.x * flCos - v1.y * flSin, vPos.y + v1.y * flCos + v1.x * flSin } },
 		{ { vPos.x + v2.x * flCos - v2.y * flSin, vPos.y + v2.y * flCos + v2.x * flSin } },
 		{ { vPos.x + v3.x * flCos - v3.y * flSin, vPos.y + v3.y * flCos + v3.x * flSin } }
 	};
-	H::Draw.FillPolygon(vVertices, tColor);
+	H::Draw.FillPolygon(aVertices, 3, tColor);
 }
 
 void COffscreenArrows::Store()
 {
-	m_mCache.clear();
+	m_vCache.clear();
 	if (!F::Groups.GroupsActive())
 		return;
 
+	const int iLocalIndex = H::Entities.GetLocalPlayerIndex();
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup(false))
 	{
-		if (!pGroup->m_bOffscreenArrows
-			|| pEntity->entindex() == I::EngineClient->GetLocalPlayer())
+		if (!pEntity || !pGroup || !pGroup->m_bOffscreenArrows
+			|| pEntity->entindex() == iLocalIndex)
 			continue;
 
-		ArrowCache_t& tCache = m_mCache[pEntity];
-		tCache.m_tColor = F::Groups.GetColor(pEntity, pGroup);
-		tCache.m_iOffset = pGroup->m_iOffscreenArrowsOffset;
-		tCache.m_flMaxDistance = pGroup->m_flOffscreenArrowsMaxDistance;
+		m_vCache.push_back({ pEntity, F::Groups.GetColor(pEntity, pGroup), pGroup->m_iOffscreenArrowsOffset, pGroup->m_flOffscreenArrowsMaxDistance });
 	}
 }
 
 void COffscreenArrows::Draw(CTFPlayer* pLocal)
 {
-	if (m_mCache.empty())
+	if (!pLocal || m_vCache.empty())
 		return;
 
 	Vec3 vLocalPos = pLocal->GetEyePosition();
-	for (auto& [pEntity, tCache] : m_mCache)
-		DrawArrowTo(vLocalPos, pEntity->GetCenter(), tCache.m_tColor, tCache.m_iOffset, tCache.m_flMaxDistance);
+	for (auto& tCache : m_vCache)
+		DrawArrowTo(vLocalPos, tCache.m_pEntity->GetCenter(), tCache.m_tColor, tCache.m_iOffset, tCache.m_flMaxDistance);
 }

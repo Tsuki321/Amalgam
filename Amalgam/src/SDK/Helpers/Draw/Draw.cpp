@@ -231,13 +231,20 @@ void CDraw::Line(int x1, int y1, int x2, int y2, Color_t tColor)
 
 void CDraw::FillPolygon(std::vector<Vertex_t>& vVertices, Color_t tColor)
 {
+	FillPolygon(vVertices.data(), int(vVertices.size()), tColor);
+}
+void CDraw::FillPolygon(Vertex_t* pVertices, int iCount, Color_t tColor)
+{
+	if (!pVertices || iCount <= 0 || !I::MatSystemSurface)
+		return;
+
 	static int iId = 0;
 	if (!I::MatSystemSurface->IsTextureIDValid(iId))
 		iId = I::MatSystemSurface->CreateNewTextureID();
 
 	I::MatSystemSurface->DrawSetColor(tColor);
 	I::MatSystemSurface->DrawSetTexture(iId);
-	I::MatSystemSurface->DrawTexturedPolygon(int(vVertices.size()), vVertices.data());
+	I::MatSystemSurface->DrawTexturedPolygon(iCount, pVertices);
 }
 void CDraw::LinePolygon(const std::vector<Vertex_t>& vVertices, Color_t tColor)
 {

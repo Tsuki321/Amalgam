@@ -114,7 +114,8 @@ bool CPlayerlistUtils::HasTags(uint32_t uAccountID, std::unordered_map<uint32_t,
 	if (!uAccountID)
 		return false;
 
-	return !mPlayerTags[uAccountID].empty();
+	auto it = mPlayerTags.find(uAccountID);
+	return it != mPlayerTags.end() && !it->second.empty();
 }
 bool CPlayerlistUtils::HasTags(int iIndex, std::unordered_map<uint32_t, std::vector<int>>& mPlayerTags)
 {

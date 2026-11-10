@@ -16,7 +16,8 @@ static inline void SetMain(BaseVar*& pBase, int iBind)
 }
 #define Set(t, b) if (IsType(t)) SetMain<t>(pBase, b);
 
-static std::unordered_mapset<BaseVar*> s_mVars = {};
+static uint32_t s_uBindGeneration = 0;
+static int s_iSpectatorModes = -1;
 static bool s_bUI = false, s_bMenu = false;
 
 static inline void LoopVars(int iBind, std::vector<BaseVar*>& vVars = G::Vars)
@@ -24,11 +25,13 @@ static inline void LoopVars(int iBind, std::vector<BaseVar*>& vVars = G::Vars)
 	const bool bDefault = iBind == DEFAULT_BIND;
 	for (auto pBase : vVars)
 	{
+		if (!pBase)
+			continue;
 		if (pBase->m_iFlags & (NOSAVE | NOBIND) && !bDefault)
 			continue;
-		// single lookup: insert reports whether this var was already visited
-		if (!s_mVars.insert({ pBase, true }).second)
+		if (pBase->m_uBindGeneration == s_uBindGeneration)
 			continue;
+		pBase->m_uBindGeneration = s_uBindGeneration;
 
 		Set(bool, iBind)
 		else Set(int, iBind)
@@ -126,37 +129,41 @@ static inline void GetBinds(int iParent, CTFPlayer* pLocal, CTFWeaponBase* pWeap
 				case BindEnum::MiscEnum::SpectatedFirst:
 				case BindEnum::MiscEnum::SpectatedThird:
 				{
-					bool bFirst = false, bThird = false;
-					if (auto pResource = H::Entities.GetResource())
+					if (s_iSpectatorModes == -1)
 					{
-						int iLocal = I::EngineClient->GetLocalPlayer();
-						for (int n = 1; n <= I::EngineClient->GetMaxClients(); n++)
+						s_iSpectatorModes = 0;
+						if (auto pResource = H::Entities.GetResource(); pResource && I::EngineClient && I::ClientEntityList)
 						{
-							auto pPlayer = I::ClientEntityList->GetClientEntity(n)->As<CTFPlayer>();
-
-							if (iLocal == n || pResource->IsFakePlayer(n)
-								|| !pPlayer || !pPlayer->IsPlayer() || pPlayer->IsAlive() || pPlayer->IsDormant()
-								|| pResource->m_iTeam(iLocal) != pResource->m_iTeam(n))
-								continue;
-
-							int iObserverTarget = pPlayer->m_hObserverTarget().GetEntryIndex();
-							int iObserverMode = pPlayer->m_iObserverMode();
-							if (iObserverTarget != iLocal)
-								continue;
-
-							switch (iObserverMode)
+							const int iLocal = I::EngineClient->GetLocalPlayer();
+							const int iMaxClients = I::EngineClient->GetMaxClients();
+							const int iTeam = pResource->m_iTeam(iLocal);
+							for (int n = 1; n <= iMaxClients; n++)
 							{
-							case OBS_MODE_FIRSTPERSON: bFirst = true; break;
-							case OBS_MODE_THIRDPERSON: bThird = true; break;
+								auto pEntity = I::ClientEntityList->GetClientEntity(n);
+								if (!pEntity || iLocal == n || pResource->IsFakePlayer(n))
+									continue;
+
+								auto pPlayer = pEntity->As<CTFPlayer>();
+								if (!pPlayer->IsPlayer() || pPlayer->IsAlive() || pPlayer->IsDormant()
+									|| iTeam != pResource->m_iTeam(n) || pPlayer->m_hObserverTarget().GetEntryIndex() != iLocal)
+									continue;
+
+								switch (pPlayer->m_iObserverMode())
+								{
+								case OBS_MODE_FIRSTPERSON: s_iSpectatorModes |= 1; break;
+								case OBS_MODE_THIRDPERSON: s_iSpectatorModes |= 2; break;
+								}
+								if (s_iSpectatorModes == 3)
+									break;
 							}
 						}
 					}
 
 					switch (tBind.m_iInfo)
 					{
-					case BindEnum::MiscEnum::Spectated: tBind.m_bActive = bFirst || bThird; break;
-					case BindEnum::MiscEnum::SpectatedFirst: tBind.m_bActive = bFirst; break;
-					case BindEnum::MiscEnum::SpectatedThird: tBind.m_bActive = bThird; break;
+					case BindEnum::MiscEnum::Spectated: tBind.m_bActive = s_iSpectatorModes != 0; break;
+					case BindEnum::MiscEnum::SpectatedFirst: tBind.m_bActive = s_iSpectatorModes & 1; break;
+					case BindEnum::MiscEnum::SpectatedThird: tBind.m_bActive = s_iSpectatorModes & 2; break;
 					}
 					break;
 				}
@@ -184,7 +191,16 @@ static inline void GetBinds(int iParent, CTFPlayer* pLocal, CTFWeaponBase* pWeap
 
 void CBinds::SetVars(CTFPlayer* pLocal, CTFWeaponBase* pWeapon, bool bManage)
 {
-	s_mVars.clear();
+	if (!++s_uBindGeneration)
+	{
+		for (auto pBase : G::Vars)
+		{
+			if (pBase)
+				pBase->m_uBindGeneration = 0;
+		}
+		++s_uBindGeneration;
+	}
+	s_iSpectatorModes = -1;
 	s_bUI = I::EngineVGui->IsGameUIVisible() || I::MatSystemSurface->IsCursorVisible() && !I::EngineClient->IsPlayingDemo();
 	s_bMenu = F::Menu.m_bIsOpen && !ImGui::GetIO().WantTextInput && !F::Menu.m_bInKeybind;
 
@@ -366,9 +382,9 @@ bool CBinds::HasChildren(int iBind)
 
 bool CBinds::WillBeEnabled(int iBind)
 {
-	Bind_t tBind;
-	while (GetBind(iBind, &tBind))
+	while (iBind > DEFAULT_BIND && iBind < int(m_vBinds.size()))
 	{
+		const auto& tBind = m_vBinds[iBind];
 		if (!tBind.m_bEnabled)
 			return false;
 		iBind = tBind.m_iParent;

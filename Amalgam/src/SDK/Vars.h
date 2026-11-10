@@ -45,6 +45,7 @@ public:
 
 public:
 	size_t m_iType;
+	uint32_t m_uBindGeneration = 0;
 
 	// typeid(T).hash_code() is a CRT call on MSVC, not a compile-time constant.
 	// Resolving it once per type keeps it out of the per-tick bind loop.

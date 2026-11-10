@@ -11,7 +11,11 @@ static std::unordered_map<unsigned short, DormantData> s_mDormancy = {};
 
 void CEntities::Store()
 {
-	auto pLocal = I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer());
+	if (!I::ClientEntityList || !I::EngineClient || !I::GlobalVars)
+		return;
+
+	const int iLocalIndex = I::EngineClient->GetLocalPlayer();
+	auto pLocal = I::ClientEntityList->GetClientEntity(iLocalIndex);
 	if (!pLocal)
 		return;
 
@@ -26,7 +30,9 @@ void CEntities::Store()
 		iStaticTickCount = I::GlobalVars->tickcount;
 	}
 
-	for (int n = I::EngineClient->GetMaxClients() + 1; n <= I::ClientEntityList->GetHighestEntityIndex(); n++)
+	const int iMaxClients = I::EngineClient->GetMaxClients();
+	const int iHighestEntityIndex = I::ClientEntityList->GetHighestEntityIndex();
+	for (int n = iMaxClients + 1; n <= iHighestEntityIndex; n++)
 	{
 		auto pEntity = I::ClientEntityList->GetClientEntity(n)->As<CBaseEntity>();
 		if (!pEntity || ManageDormancy(pEntity))
@@ -228,14 +234,14 @@ void CEntities::Store()
 		}
 		m_iPartyCount = uPartyCount;
 	}
-	for (int n = 1; n <= I::EngineClient->GetMaxClients(); n++)
+	for (int n = 1; n <= iMaxClients; n++)
 	{
 		if (bUpdateInfo)
 		{
 			auto pResource = GetResource();
 			if (pResource && pResource->m_bValid(n))
 			{
-				bool bLocal = n == I::EngineClient->GetLocalPlayer();
+				bool bLocal = n == iLocalIndex;
 				uint32_t uAccountID = pResource->m_iAccountID(n);
 				if (bLocal) m_uAccountID = uAccountID;
 
@@ -256,7 +262,7 @@ void CEntities::Store()
 		m_aGroups[pPlayer->m_iTeamNum() != m_pLocal->m_iTeamNum() ? EntityEnum::PlayerEnemy : EntityEnum::PlayerTeam].push_back(pPlayer);
 		ManageDormancy(pPlayer);
 		
-		if (n != I::EngineClient->GetLocalPlayer())
+		if (n != iLocalIndex)
 		{
 			if (float flOldSimTime = m_aSimTimes[n], flSimTime = m_aSimTimes[n] = pPlayer->m_flSimulationTime();
 				m_aDeltaTimes[n] = flSimTime > flOldSimTime)
@@ -287,7 +293,7 @@ void CEntities::Store()
 	for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 	{
 		auto pPlayer = pEntity->As<CTFPlayer>();
-		if (!pPlayer->IsAlive() || pPlayer->entindex() == I::EngineClient->GetLocalPlayer() && !I::EngineClient->IsPlayingDemo()) // local player managed in CreateMove
+		if (!pPlayer->IsAlive() || pPlayer->entindex() == iLocalIndex && !I::EngineClient->IsPlayingDemo()) // local player managed in CreateMove
 			continue;
 
 		bool bResolver = F::Resolver.GetAngles(pPlayer);
@@ -402,11 +408,11 @@ bool CEntities::ManageDormancy(CBaseEntity* pEntity)
 			if (pPlayer->IsAlive() && pPlayer->m_iObserverMode() != OBS_MODE_NONE)
 				pPlayer->m_iObserverMode() = OBS_MODE_NONE;
 		}
-		if (s_mDormancy.contains(n))
+		if (auto it = s_mDormancy.find(n); it != s_mDormancy.end())
 		{
-			auto& tDormancy = s_mDormancy[n];
+			auto& tDormancy = it->second;
 			if (tDormancy.m_flLastUpdate + flDuration < I::GlobalVars->curtime || pEntity->IsPlayer() && !pEntity->As<CTFPlayer>()->IsAlive())
-				s_mDormancy.erase(n);
+				s_mDormancy.erase(it);
 		}
 	}
 	else if (!pEntity->IsPlayer() || pEntity->As<CTFPlayer>()->IsAlive())
@@ -541,18 +547,48 @@ Vec3* CEntities::GetAvgVelocity(uint16_t iIndex) { return iIndex < MAX_PLAYERS &
 void CEntities::SetAvgVelocity(uint16_t iIndex, Vec3 vAvgVelocity) { if (iIndex < MAX_PLAYERS) m_aAvgVelocities[iIndex] = vAvgVelocity; }
 std::deque<VelFixRecord>* CEntities::GetOrigins(uint16_t iIndex) { return iIndex < MAX_PLAYERS ? &m_aOrigins[iIndex] : nullptr; }
 uint32_t CEntities::GetModel(unsigned short iIndex) { return iIndex < MAX_EDICTS ? m_aModels[iIndex] : 0; }
-DormantData* CEntities::GetDormancy(unsigned short iIndex) { return s_mDormancy.contains(iIndex) ? &s_mDormancy[iIndex] : nullptr; }
+DormantData* CEntities::GetDormancy(unsigned short iIndex)
+{
+	auto it = s_mDormancy.find(iIndex);
+	return it != s_mDormancy.end() ? &it->second : nullptr;
+}
 
 int CEntities::GetPriority(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIPriorities[iIndex] : 0; }
-int CEntities::GetPriority(uint32_t uAccountID) { return m_mUPriorities[uAccountID]; }
+int CEntities::GetPriority(uint32_t uAccountID)
+{
+	auto it = m_mUPriorities.find(uAccountID);
+	return it != m_mUPriorities.end() ? it->second : 0;
+}
 bool CEntities::IsFriend(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIFriends[iIndex] : false; }
-bool CEntities::IsFriend(uint32_t uAccountID) { return m_mUFriends[uAccountID]; }
+bool CEntities::IsFriend(uint32_t uAccountID)
+{
+	auto it = m_mUFriends.find(uAccountID);
+	return it != m_mUFriends.end() && it->second;
+}
 bool CEntities::InParty(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS && iIndex != I::EngineClient->GetLocalPlayer() && m_aIParty[iIndex] == 1; }
-bool CEntities::InParty(uint32_t uAccountID) { return uAccountID != m_uAccountID && m_mUParty[uAccountID] == 1; }
+bool CEntities::InParty(uint32_t uAccountID)
+{
+	if (uAccountID == m_uAccountID)
+		return false;
+	auto it = m_mUParty.find(uAccountID);
+	return it != m_mUParty.end() && it->second == 1;
+}
 bool CEntities::IsF2P(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIF2P[iIndex] : false; }
-bool CEntities::IsF2P(uint32_t uAccountID) { return m_mUF2P[uAccountID]; }
+bool CEntities::IsF2P(uint32_t uAccountID)
+{
+	auto it = m_mUF2P.find(uAccountID);
+	return it != m_mUF2P.end() && it->second;
+}
 int CEntities::GetLevel(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aILevels[iIndex] : -2; }
-int CEntities::GetLevel(uint32_t uAccountID) { return m_mULevels.contains(uAccountID) ? m_mULevels[uAccountID] : -2; }
+int CEntities::GetLevel(uint32_t uAccountID)
+{
+	auto it = m_mULevels.find(uAccountID);
+	return it != m_mULevels.end() ? it->second : -2;
+}
 int CEntities::GetParty(int iIndex) { return iIndex >= 0 && iIndex < MAX_PLAYERS ? m_aIParty[iIndex] : 0; }
-int CEntities::GetParty(uint32_t uAccountID) { return m_mUParty.contains(uAccountID) ? m_mUParty[uAccountID] : 0; }
+int CEntities::GetParty(uint32_t uAccountID)
+{
+	auto it = m_mUParty.find(uAccountID);
+	return it != m_mUParty.end() ? it->second : 0;
+}
 int CEntities::GetPartyCount() { return m_iPartyCount; }
