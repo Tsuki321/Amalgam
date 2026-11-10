@@ -9,6 +9,7 @@ struct Projectile_t
 	Vec3 m_vNormal = { 0, 0, 1 };
 	Color_t m_tColor = {};
 	int m_iFlags = 0b0;
+	uint32_t m_uStoreGeneration = 0;
 };
 
 struct Sightline_t
@@ -33,7 +34,7 @@ private:
 	std::vector<Sightline_t> m_vSightLines = {};
 	std::vector<PickupData_t> m_vPickups = {};
 	std::vector<Vec3> m_vAngles = {};
-	std::unordered_mapset<CBaseEntity*> m_mStoreProjectiles = {};
+	uint32_t m_uStoreGeneration = 0;
 	std::unordered_map<IClientEntity*, Vec3> m_mStoreDots = {};
 
 public:
@@ -44,7 +45,7 @@ public:
 	void ProjectileTrace(CTFPlayer* pPlayer, CTFWeaponBase* pWeapon, const bool bInterp = true);
 	void DrawPickupTimers();
 
-	std::vector<DrawBox_t> GetHitboxes(matrix3x4* aBones, CBaseAnimating* pEntity, std::vector<int> vHitboxes = {}, int iTarget = -1);
+	std::vector<DrawBox_t> GetHitboxes(matrix3x4* aBones, CBaseAnimating* pEntity, const std::vector<int>& vHitboxes = {}, int iTarget = -1);
 	void DrawEffects();
 	void DrawHitboxes(int iStore = 0);
 

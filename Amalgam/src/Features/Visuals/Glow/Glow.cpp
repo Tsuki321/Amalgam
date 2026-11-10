@@ -125,22 +125,32 @@ void CGlow::DrawModel(CBaseEntity* pEntity)
 
 void CGlow::Store(CTFPlayer* pLocal)
 {
-	m_mEntities.clear();
 	if (!pLocal || !F::Groups.GroupsActive())
+	{
+		m_mEntities.clear();
 		return;
+	}
+
+	for (auto& [tGlow, vInfo] : m_mEntities)
+		vInfo.clear();
 
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup())
 	{
-		if (pEntity->IsDormant() || !pEntity->ShouldDraw())
+		if (!pEntity || !pGroup || pEntity->IsDormant() || !pEntity->ShouldDraw())
+			continue;
+
+		bool bGlow = pGroup->m_tGlow() && !pEntity->IsWearableVM()
+			&& SDK::IsOnScreen(pEntity, pEntity->IsBaseCombatWeapon() || pEntity->IsWearable());
+		bool bBacktrack = pEntity->IsPlayer() && pEntity != pLocal && pGroup->m_iBacktrack & BacktrackEnum::Enabled && pGroup->m_tBacktrackGlow()
+			&& (F::Backtrack.GetFakeLatency() || F::Backtrack.GetFakeInterp() > G::Lerp || F::Backtrack.GetWindow());
+		if (!bGlow && !bBacktrack)
 			continue;
 
 		Color_t tColor = F::Groups.GetColor(pEntity, pGroup);
-		if (pGroup->m_tGlow() && !pEntity->IsWearableVM()
-			&& SDK::IsOnScreen(pEntity, pEntity->IsBaseCombatWeapon() || pEntity->IsWearable()))
+		if (bGlow)
 			m_mEntities[pGroup->m_tGlow].emplace_back(pEntity, tColor);
 
-		if (pEntity->IsPlayer() && pEntity != pLocal && pGroup->m_iBacktrack & BacktrackEnum::Enabled && pGroup->m_tBacktrackGlow()
-			&& (F::Backtrack.GetFakeLatency() || F::Backtrack.GetFakeInterp() > G::Lerp || F::Backtrack.GetWindow()))
+		if (bBacktrack)
 		{
 			auto pWeapon = H::Entities.GetWeapon();
 			if (pWeapon && (pGroup->m_iBacktrack & BacktrackEnum::Always || G::PrimaryWeaponType != EWeaponType::PROJECTILE))
@@ -163,10 +173,15 @@ void CGlow::Store(CTFPlayer* pLocal)
 	{	// fakeangle
 		m_mEntities[pGroup->m_tGlow].emplace_back(pLocal, pGroup->m_tColor, 1);
 	}
+
+	std::erase_if(m_mEntities, [](const auto& pair) { return pair.second.empty(); });
 }
 
 void CGlow::RenderFirst()
 {
+	if (m_mEntities.empty())
+		return;
+
 	auto pRenderContext = I::MaterialSystem->GetRenderContext();
 	if (!pRenderContext || !m_pMatGlowColor || !m_pMatBlurX || !m_pMatBlurY || !m_pMatHaloAddToScreen)
 	{	// defer: reloading here would unload + rescan materials from disk mid-frame,
@@ -174,9 +189,6 @@ void CGlow::RenderFirst()
 		F::Materials.m_bReloadPending = true;
 		return;
 	}
-
-	if (m_mEntities.empty())
-		return;
 
 	FirstBegin(pRenderContext);
 	for (auto& [tGlow, vInfo] : m_mEntities)
@@ -193,6 +205,9 @@ void CGlow::RenderFirst()
 
 void CGlow::RenderSecond()
 {
+	if (m_mEntities.empty())
+		return;
+
 	auto pRenderContext = I::MaterialSystem->GetRenderContext();
 	if (!pRenderContext || !m_pMatGlowColor || !m_pMatBlurX || !m_pMatBlurY || !m_pMatHaloAddToScreen)
 	{	// see RenderFirst: defer to end of frame rather than reloading mid-render

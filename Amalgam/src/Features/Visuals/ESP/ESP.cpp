@@ -6,7 +6,7 @@
 #include "../../Simulation/MovementSimulation/MovementSimulation.h"
 #include "../../Simulation/ProjectileSimulation/ProjectileSimulation.h"
 
-static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, PlayerCache_t>& mCache)
+static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, PlayerCache_t>& mCache, uint32_t uStoreGeneration)
 {
 	int iIndex = pPlayer->entindex();
 
@@ -21,12 +21,11 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 	int iClassNum = pPlayer->m_iClass();
 
 	PlayerCache_t& tCache = mCache[pPlayer];
+	tCache.m_uStoreGeneration = uStoreGeneration;
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
 	tCache.m_vBars.clear();
-	tCache.m_vText.reserve(8);
-	tCache.m_vBars.reserve(2);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pPlayer, pGroup).Alpha(255);
@@ -89,7 +88,7 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 
 				if (!vTags.empty())
 				{
-					std::sort(vTags.begin(), vTags.end(), [&](const auto a, const auto b) -> bool
+					std::sort(vTags.begin(), vTags.end(), [&](const auto& a, const auto& b) -> bool
 					{
 						// sort by priority if unequal
 						if (std::get<2>(a) != std::get<2>(b))
@@ -383,7 +382,7 @@ static inline void StorePlayer(CTFPlayer* pPlayer, CTFPlayer* pLocal, Group_t* p
 	}
 }
 
-static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, BuildingCache_t>& mCache)
+static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, BuildingCache_t>& mCache, uint32_t uStoreGeneration)
 {
 	auto pOwner = pBuilding->m_hBuilder().Get();
 	int iIndex = pOwner ? pOwner->entindex() : -1;
@@ -391,12 +390,11 @@ static inline void StoreBuilding(CBaseObject* pBuilding, CTFPlayer* pLocal, Grou
 	bool bIsMini = pBuilding->m_bMiniBuilding();
 
 	BuildingCache_t& tCache = mCache[pBuilding];
+	tCache.m_uStoreGeneration = uStoreGeneration;
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
 	tCache.m_vBars.clear();
-	tCache.m_vText.reserve(4);
-	tCache.m_vBars.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pBuilding, pGroup).Alpha(255);
@@ -511,16 +509,16 @@ static inline const char* GetProjectileName(CBaseEntity* pProjectile)
 	}
 	return sReturn;
 }
-static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache)
+static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache, uint32_t uStoreGeneration)
 {
 	auto pOwner = F::ProjSim.GetEntities(pProjectile).second;
 	int iIndex = pOwner ? pOwner->entindex() : -1;
 
 	EntityCache_t& tCache = mCache[pProjectile];
+	tCache.m_uStoreGeneration = uStoreGeneration;
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	tCache.m_vText.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pOwner ? pOwner : pProjectile, pGroup);
@@ -610,17 +608,17 @@ static inline void StoreProjectile(CBaseEntity* pProjectile, CTFPlayer* pLocal, 
 	}
 }
 
-static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache)
+static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache, uint32_t uStoreGeneration)
 {
 	auto pOwner = pObjective->m_hOwnerEntity()->As<CTFPlayer>();
 	if (pOwner == pLocal)
 		return;
 
 	EntityCache_t& tCache = mCache[pObjective];
+	tCache.m_uStoreGeneration = uStoreGeneration;
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	tCache.m_vText.reserve(3);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pObjective, pGroup);
@@ -667,13 +665,13 @@ static inline void StoreObjective(CBaseEntity* pObjective, CTFPlayer* pLocal, Gr
 	}
 }
 
-static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache)
+static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* pGroup, std::unordered_map<CBaseEntity*, EntityCache_t>& mCache, uint32_t uStoreGeneration)
 {
 	EntityCache_t& tCache = mCache[pEntity];
+	tCache.m_uStoreGeneration = uStoreGeneration;
 
 	// Clear and rebuild vectors - capacity preserved across frames
 	tCache.m_vText.clear();
-	tCache.m_vText.reserve(2);
 
 	tCache.m_flAlpha = pGroup->m_tColor.a / 255.f;
 	tCache.m_tColor = F::Groups.GetColor(pEntity, pGroup);
@@ -740,7 +738,7 @@ static inline void StoreMisc(CBaseEntity* pEntity, CTFPlayer* pLocal, Group_t* p
 
 void CESP::Store(CTFPlayer* pLocal)
 {
-	m_sActiveEntities.clear();
+	++m_uStoreGeneration;
 	if (!pLocal || !F::Groups.GroupsActive())
 	{
 		// Clear all caches when ESP is disabled
@@ -752,25 +750,23 @@ void CESP::Store(CTFPlayer* pLocal)
 
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup(false))
 	{
-		if (!pGroup->m_iESP)
+		if (!pEntity || !pGroup || !pGroup->m_iESP)
 			continue;
 
-		m_sActiveEntities.insert(pEntity);
-
 		if (pEntity->IsPlayer())
-			StorePlayer(pEntity->As<CTFPlayer>(), pLocal, pGroup, m_mPlayerCache);
+			StorePlayer(pEntity->As<CTFPlayer>(), pLocal, pGroup, m_mPlayerCache, m_uStoreGeneration);
 		else if (pEntity->IsBuilding())
-			StoreBuilding(pEntity->As<CBaseObject>(), pLocal, pGroup, m_mBuildingCache);
+			StoreBuilding(pEntity->As<CBaseObject>(), pLocal, pGroup, m_mBuildingCache, m_uStoreGeneration);
 		else if (pEntity->IsProjectile())
-			StoreProjectile(pEntity, pLocal, pGroup, m_mEntityCache);
+			StoreProjectile(pEntity, pLocal, pGroup, m_mEntityCache, m_uStoreGeneration);
 		else if (pEntity->GetClassID() == ETFClassID::CCaptureFlag)
-			StoreObjective(pEntity, pLocal, pGroup, m_mEntityCache);
+			StoreObjective(pEntity, pLocal, pGroup, m_mEntityCache, m_uStoreGeneration);
 		else
-			StoreMisc(pEntity, pLocal, pGroup, m_mEntityCache);
+			StoreMisc(pEntity, pLocal, pGroup, m_mEntityCache, m_uStoreGeneration);
 	}
 
 	// Prune stale entries from caches using erase_if pattern
-	auto IsStale = [this](const auto& pair) { return m_sActiveEntities.find(pair.first) == m_sActiveEntities.end(); };
+	auto IsStale = [this](const auto& pair) { return pair.second.m_uStoreGeneration != m_uStoreGeneration; };
 	std::erase_if(m_mPlayerCache, IsStale);
 	std::erase_if(m_mBuildingCache, IsStale);
 	std::erase_if(m_mEntityCache, IsStale);
@@ -781,6 +777,9 @@ static matrix3x4 s_mTransform = {};
 
 void CESP::Draw()
 {
+	if (m_mPlayerCache.empty() && m_mBuildingCache.empty() && m_mEntityCache.empty())
+		return;
+
 	Math::AngleMatrix({ 0.f, I::EngineClient->GetViewAngles().y, 0.f }, s_mTransform, false);
 
 	DrawWorld();

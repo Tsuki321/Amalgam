@@ -22,13 +22,14 @@ enum ECritBoostUpdateType { kCritBoost_Ignore, kCritBoost_ForceRefresh };
 
 static std::vector<Vec3> SplashTrace(Vec3 vOrigin, float flRadius, Vec3 vNormal = { 0, 0, 1 }, bool bTrace = true, int iSegments = 100)
 {
-	if (!flRadius)
+	if (!flRadius || iSegments <= 0)
 		return {};
 
 	Vec3 vAngles = Math::VectorAngles(vNormal);
 	Vec3 vRight, vUp; Math::AngleVectors(vAngles, nullptr, &vRight, &vUp);
 
 	std::vector<Vec3> vPoints = {};
+	vPoints.reserve(size_t(iSegments) + 1);
 	for (float i = 0.f; i < iSegments; i++)
 	{
 		Vec3 vPoint = vOrigin + (vRight * cos(2 * Math::PI * i / iSegments) + vUp * sin(2 * Math::PI * i / iSegments)) * flRadius;
@@ -272,8 +273,11 @@ void CVisuals::DrawPickupTimers()
 
 
 
-std::vector<DrawBox_t> CVisuals::GetHitboxes(matrix3x4* aBones, CBaseAnimating* pEntity, std::vector<int> vHitboxes, int iTarget)
+std::vector<DrawBox_t> CVisuals::GetHitboxes(matrix3x4* aBones, CBaseAnimating* pEntity, const std::vector<int>& vHitboxes, int iTarget)
 {
+	if (!aBones || !pEntity)
+		return {};
+
 	if (!Vars::Colors::BoneHitboxEdge.Value.a && !Vars::Colors::BoneHitboxFace.Value.a && !Vars::Colors::BoneHitboxEdgeIgnoreZ.Value.a && !Vars::Colors::BoneHitboxFaceIgnoreZ.Value.a
 		&& !Vars::Colors::TargetHitboxEdge.Value.a && !Vars::Colors::TargetHitboxFace.Value.a && !Vars::Colors::TargetHitboxEdgeIgnoreZ.Value.a && !Vars::Colors::TargetHitboxFaceIgnoreZ.Value.a)
 		return {};
@@ -284,14 +288,11 @@ std::vector<DrawBox_t> CVisuals::GetHitboxes(matrix3x4* aBones, CBaseAnimating* 
 	if (!pSet)
 		return vBoxes;
 
-	if (vHitboxes.empty())
+	const bool bAllHitboxes = vHitboxes.empty();
+	const int iHitboxes = bAllHitboxes ? pSet->numhitboxes : int(vHitboxes.size());
+	for (int i = 0; i < iHitboxes; i++)
 	{
-		for (int nHitbox = 0; nHitbox < pSet->numhitboxes; nHitbox++)
-			vHitboxes.push_back(nHitbox);
-	}
-
-	for (int nHitbox : vHitboxes)
-	{
+		int nHitbox = bAllHitboxes ? i : vHitboxes[i];
 		auto pBox = pSet->pHitbox(nHitbox);
 		if (!pBox)
 			continue;
@@ -688,6 +689,9 @@ void CVisuals::Event(IGameEvent* pEvent, uint32_t uHash)
 	case FNV1A::Hash32Const("teamplay_round_start"):
 	{
 		m_vPickups.clear();
+		m_mProjectiles.clear();
+		m_mStoreDots.clear();
+		m_vSightLines.clear();
 
 		G::LineStorage.clear();
 		G::BoxStorage.clear();
@@ -701,22 +705,25 @@ void CVisuals::Event(IGameEvent* pEvent, uint32_t uHash)
 
 void CVisuals::Store()
 {
+	++m_uStoreGeneration;
 	m_vSightLines.clear();
 	if (!F::Groups.GroupsActive())
+	{
+		m_mProjectiles.clear();
+		m_mStoreDots.clear();
 		return;
+	}
 
 	Group_t* pGroup;
 
 	{
-		m_mStoreProjectiles.clear();
-
 		for (auto pEntity : H::Entities.GetGroup(EntityEnum::WorldProjectile))
 		{
-			if (!F::Groups.GetGroup(pEntity, pGroup, false) || !(pGroup->m_iTrajectory & TrajectoryEnum::Enabled))
+			if (!pEntity || !F::Groups.GetGroup(pEntity, pGroup, false) || !pGroup || !(pGroup->m_iTrajectory & TrajectoryEnum::Enabled))
 				continue;
 
 			Projectile_t& tProjectile = m_mProjectiles[pEntity];
-			m_mStoreProjectiles[pEntity];
+			tProjectile.m_uStoreGeneration = m_uStoreGeneration;
 
 			ProjectileInfo tProjInfo = {};
 			F::ProjSim.GetInfo(pEntity, tProjInfo);
@@ -793,33 +800,27 @@ void CVisuals::Store()
 					}
 				}
 
-				tProjectile.m_vPath = tProjInfo.m_vPath;
-				tProjectile.m_flTime = -int(tProjInfo.m_vPath.size());
+				tProjectile.m_vPath = std::move(tProjInfo.m_vPath);
+				tProjectile.m_flTime = -int(tProjectile.m_vPath.size());
 			}
 		}
 
-		for (auto& pEntity : m_mProjectiles | std::views::keys)
-		{
-			if (!m_mStoreProjectiles.contains(pEntity))
-				m_mProjectiles.erase(pEntity);
-		}
+		std::erase_if(m_mProjectiles, [this](const auto& pair) { return pair.second.m_uStoreGeneration != m_uStoreGeneration; });
 	}
 
 	{
 		m_mStoreDots.clear();
 
-		for (auto pEntity : H::Entities.GetGroup(EntityEnum::SniperDots))
-		{
-			if (auto pOwner = pEntity->m_hOwnerEntity().Get())
-				m_mStoreDots[pOwner] = pEntity->m_vecOrigin();
-		}
-
+		bool bStoreDots = true;
 		int iLocalIdx = H::Entities.GetLocalPlayerIndex();
 		for (auto pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 		{
+			if (!pEntity)
+				continue;
+
 			auto pPlayer = pEntity->As<CTFPlayer>();
 			if (pPlayer->entindex() == iLocalIdx || pPlayer->IsDormant()
-				|| !F::Groups.GetGroup(pEntity, pGroup, false) || !(pGroup->m_iSightlines & SightlinesEnum::Enabled))
+				|| !F::Groups.GetGroup(pEntity, pGroup, false) || !pGroup || !(pGroup->m_iSightlines & SightlinesEnum::Enabled))
 				continue;
 
 			auto pWeapon = pPlayer->m_hActiveWeapon()->As<CTFWeaponBase>();
@@ -827,9 +828,23 @@ void CVisuals::Store()
 				!pWeapon || pWeapon->GetWeaponID() == TF_WEAPON_COMPOUND_BOW || pWeapon->GetWeaponID() == TF_WEAPON_MINIGUN)
 				continue;
 
+			if (bStoreDots)
+			{
+				for (auto pDot : H::Entities.GetGroup(EntityEnum::SniperDots))
+				{
+					if (!pDot)
+						continue;
+
+					if (auto pOwner = pDot->m_hOwnerEntity().Get())
+						m_mStoreDots[pOwner] = pDot->m_vecOrigin();
+				}
+				bStoreDots = false;
+			}
+
 			Vec3 vShootPos = pPlayer->m_vecOrigin() + pPlayer->GetViewOffset();
 			Vec3 vForward; Math::AngleVectors(pPlayer->GetEyeAngles(), &vForward);
-			Vec3 vShootEnd = m_mStoreDots.contains(pPlayer) ? m_mStoreDots[pPlayer] : vShootPos + (vForward * 8192.f);
+			auto it = m_mStoreDots.find(pPlayer);
+			Vec3 vShootEnd = it != m_mStoreDots.end() ? it->second : vShootPos + (vForward * 8192.f);
 
 			CGameTrace trace = {};
 			CTraceFilterHitscan filter = {};

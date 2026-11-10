@@ -22,6 +22,7 @@ struct Bar_t
 struct EntityCache_t
 {
 	float m_flAlpha = 1.f;
+	uint32_t m_uStoreGeneration = 0;
 	std::vector<Text_t> m_vText = {};
 	Color_t m_tColor = {};
 	bool m_bBox = false;
@@ -55,8 +56,7 @@ private:
 	std::unordered_map<CBaseEntity*, BuildingCache_t> m_mBuildingCache = {};
 	std::unordered_map<CBaseEntity*, EntityCache_t> m_mEntityCache = {};
 
-	// Track which entities are active this frame to prune stale entries
-	std::unordered_set<CBaseEntity*> m_sActiveEntities = {};
+	uint32_t m_uStoreGeneration = 0;
 
 public:
 	void Store(CTFPlayer* pLocal);

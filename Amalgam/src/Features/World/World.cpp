@@ -90,6 +90,7 @@ static inline void GetFacesForConvex(CPhysConvex* pConvex, std::vector<Face_t>& 
 				continue;
 
 			std::vector<Vec3> vVertices = {};
+			vVertices.reserve(vIndices.size());
 			for (auto& iVertex : vIndices)
 				vVertices.push_back(pPolyhedron->pVertices[iVertex]);
 
@@ -104,7 +105,7 @@ static inline void GetFacesForConvex(CPhysConvex* pConvex, std::vector<Face_t>& 
 				});
 			}
 
-			vFaces.emplace_back(vVertices, vNormal, iType);
+			vFaces.emplace_back(std::move(vVertices), vNormal, iType);
 		}
 	}
 	else
@@ -213,7 +214,7 @@ void CWorld::CacheBoxBrushes()
 			}
 			Vec3& vNormal = aNormals[i];
 
-			m_mFaceCache[pBrush].emplace_back(vVertices, vNormal, FaceTypeEnum::BoxBrush);
+			m_mFaceCache[pBrush].emplace_back(std::move(vVertices), vNormal, FaceTypeEnum::BoxBrush);
 		}
 	}
 
@@ -332,11 +333,7 @@ void CWorld::UncacheBoxBrushes()
 	if (m_iNeedsCache & FaceTypeEnum::BoxBrush)
 		return;
 
-	for (auto& [pKey, vFaces] : m_mFaceCache)
-	{
-		if (vFaces.front().m_iType == FaceTypeEnum::BoxBrush)
-			m_mFaceCache.erase(pKey);
-	}
+	std::erase_if(m_mFaceCache, [](const auto& pair) { return pair.second.empty() || pair.second.front().m_iType == FaceTypeEnum::BoxBrush; });
 
 	m_iNeedsCache |= FaceTypeEnum::BoxBrush;
 }
@@ -346,11 +343,7 @@ void CWorld::UncachePlaneBrushes()
 	if (m_iNeedsCache & FaceTypeEnum::PlaneBrush)
 		return;
 
-	for (auto& [pKey, vFaces] : m_mFaceCache)
-	{
-		if (vFaces.front().m_iType == FaceTypeEnum::PlaneBrush)
-			m_mFaceCache.erase(pKey);
-	}
+	std::erase_if(m_mFaceCache, [](const auto& pair) { return pair.second.empty() || pair.second.front().m_iType == FaceTypeEnum::PlaneBrush; });
 
 	m_iNeedsCache |= FaceTypeEnum::PlaneBrush;
 }
@@ -360,11 +353,7 @@ void CWorld::UncacheProps()
 	if (m_iNeedsCache & FaceTypeEnum::Prop)
 		return;
 
-	for (auto& [pKey, vFaces] : m_mFaceCache)
-	{
-		if (vFaces.front().m_iType == FaceTypeEnum::Prop)
-			m_mFaceCache.erase(pKey);
-	}
+	std::erase_if(m_mFaceCache, [](const auto& pair) { return pair.second.empty() || pair.second.front().m_iType == FaceTypeEnum::Prop; });
 
 	m_iNeedsCache |= FaceTypeEnum::Prop;
 }
@@ -374,11 +363,7 @@ void CWorld::UncacheEntities()
 	if (m_iNeedsCache & FaceTypeEnum::Entity)
 		return;
 
-	for (auto& [pKey, vFaces] : m_mFaceCache)
-	{
-		if (vFaces.front().m_iType == FaceTypeEnum::Entity)
-			m_mFaceCache.erase(pKey);
-	}
+	std::erase_if(m_mFaceCache, [](const auto& pair) { return pair.second.empty() || pair.second.front().m_iType == FaceTypeEnum::Entity; });
 
 	m_iNeedsCache |= FaceTypeEnum::Entity;
 }
@@ -397,14 +382,15 @@ std::vector<Face_t> CWorld::GetFacesInAABB(const Vec3& vMins, const Vec3& vMaxs,
 		for (int iBrush = 0; iBrush < vBrushes.Count(); iBrush++)
 		{
 			cbrush_t* pBrush = &I::BSPData->map_brushes[vBrushes[iBrush]];
-			if (!m_mFaceCache.contains(pBrush))
+			auto it = m_mFaceCache.find(pBrush);
+			if (it == m_mFaceCache.end())
 				continue;
 
 			bool bBox = pBrush->IsBox();
 			if (!(iFlags & (bBox ? FaceTypeEnum::BoxBrush : FaceTypeEnum::PlaneBrush)))
 				continue;
 
-			auto& vCache = m_mFaceCache[pBrush];
+			auto& vCache = it->second;
 			if (bBox)
 			{
 				for (auto& tFace : vCache)
@@ -430,6 +416,7 @@ std::vector<Face_t> CWorld::GetFacesInAABB(const Vec3& vMins, const Vec3& vMaxs,
 
 	if (iFlags & FaceTypeEnum::Displacement && *I::DispCollTrees)
 	{
+		std::vector<Vec3> vVertices(3);
 		for (int iDisplacement = 0; iDisplacement < *I::DispCollTreeCount; iDisplacement++)
 		{
 			CDispCollTree* pDispTree = &(*I::DispCollTrees)[iDisplacement];
@@ -441,7 +428,9 @@ std::vector<Face_t> CWorld::GetFacesInAABB(const Vec3& vMins, const Vec3& vMaxs,
 			{
 				CDispCollTri* pTri = &pDispTree->m_aTris[iFace];
 						
-				std::vector<Vec3> vVertices = { pDispTree->m_aVerts[pTri->GetVert(0)], pDispTree->m_aVerts[pTri->GetVert(1)], pDispTree->m_aVerts[pTri->GetVert(2)] };
+				vVertices[0] = pDispTree->m_aVerts[pTri->GetVert(0)];
+				vVertices[1] = pDispTree->m_aVerts[pTri->GetVert(1)];
+				vVertices[2] = pDispTree->m_aVerts[pTri->GetVert(2)];
 
 				if (FaceValid(vVertices, &pTri->m_vecNormal, &vMins, &vMaxs))
 					vFaces.emplace_back(vVertices, pTri->m_vecNormal, FaceTypeEnum::Displacement);
@@ -476,10 +465,11 @@ std::vector<Face_t> CWorld::GetFacesInAABB(const Vec3& vMins, const Vec3& vMaxs,
 				continue;
 
 			vcollide_t* pCollide = I::ModelInfoClient->GetVCollide(pCollideable->GetCollisionModel());
-			if (!m_mFaceCache.contains(pCollide))
+			auto it = m_mFaceCache.find(pCollide);
+			if (it == m_mFaceCache.end())
 				continue; // cache as well?
 
-			auto& vCache = m_mFaceCache[pCollide];
+			auto& vCache = it->second;
 			for (auto& tFace : vCache)
 			{
 				std::vector<Vec3> vVertices = tFace.m_vVertices;
@@ -497,7 +487,7 @@ std::vector<Face_t> CWorld::GetFacesInAABB(const Vec3& vMins, const Vec3& vMaxs,
 				}
 
 				if (FaceValid(vVertices, &vNormal, &vMins, &vMaxs))
-					vFaces.emplace_back(vVertices, vNormal, tFace.m_iType);
+					vFaces.emplace_back(std::move(vVertices), vNormal, tFace.m_iType);
 			}
 		}
 	}

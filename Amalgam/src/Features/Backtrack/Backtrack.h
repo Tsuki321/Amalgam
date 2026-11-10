@@ -26,8 +26,8 @@ private:
 	void MakeRecords();
 	void CleanRecords();
 
-	std::unordered_map<CBaseEntity*, std::deque<TickRecord>> m_mRecords = {};
-	std::unordered_map<int, bool> m_mDidShoot = {};
+	std::unordered_map<int, std::deque<TickRecord>> m_mRecords = {};
+	std::array<CBaseHandle, MAX_PLAYERS> m_aShotHandles = {};
 
 	std::deque<Sequence_t> m_dSequences;
 	int m_iLastInSequence = 0;

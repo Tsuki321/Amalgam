@@ -7,6 +7,7 @@
 void CBacktrack::Reset()
 {
 	m_mRecords.clear();
+	m_aShotHandles.fill(CBaseHandle());
 	m_dSequences.clear();
 	m_iLastInSequence = 0;
 }
@@ -130,11 +131,15 @@ void CBacktrack::UpdateDatagram()
 
 bool CBacktrack::GetRecords(CBaseEntity* pEntity, std::vector<TickRecord*>& vReturn)
 {
-	if (!m_mRecords.contains(pEntity))
+	if (!pEntity)
 		return false;
 
-	auto& vRecords = m_mRecords[pEntity];
-	vReturn.reserve(vRecords.size());
+	auto it = m_mRecords.find(pEntity->GetRefEHandle().ToInt());
+	if (it == m_mRecords.end())
+		return false;
+
+	auto& vRecords = it->second;
+	vReturn.reserve(vReturn.size() + vRecords.size());
 	for (auto& tRecord : vRecords)
 		vReturn.push_back(&tRecord);
 	return true;
@@ -205,9 +210,12 @@ std::vector<TickRecord*> CBacktrack::GetValidRecords(std::vector<TickRecord*>& v
 
 matrix3x4* CBacktrack::GetBones(CBaseEntity* pEntity)
 {
-	std::vector<TickRecord*> vRecords = {};
-	if (F::Backtrack.GetRecords(pEntity, vRecords) && !vRecords.empty())
-		return vRecords.front()->m_aBones;
+	if (!pEntity)
+		return nullptr;
+
+	auto it = m_mRecords.find(pEntity->GetRefEHandle().ToInt());
+	if (it != m_mRecords.end() && !it->second.empty())
+		return it->second.front().m_aBones;
 	return nullptr;
 }
 
@@ -215,14 +223,29 @@ matrix3x4* CBacktrack::GetBones(CBaseEntity* pEntity)
 
 void CBacktrack::MakeRecords()
 {
+	const int iLocalIndex = H::Entities.GetLocalPlayerIndex();
 	for (auto& pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
 	{
-		auto pPlayer = pEntity->As<CTFPlayer>();
-		if (pPlayer->entindex() == I::EngineClient->GetLocalPlayer() || !pPlayer->IsAlive() || pPlayer->IsAGhost()
-			|| !H::Entities.GetDeltaTime(pPlayer->entindex()))
+		if (!pEntity)
 			continue;
 
-		auto& vRecords = m_mRecords[pPlayer];
+		auto pPlayer = pEntity->As<CTFPlayer>();
+		const int iIndex = pPlayer->entindex();
+		if (iIndex <= 0 || iIndex >= int(m_aShotHandles.size()) || iIndex == iLocalIndex)
+			continue;
+		if (!pPlayer->IsAlive() || pPlayer->IsAGhost())
+		{
+			m_aShotHandles[iIndex].Term();
+			continue;
+		}
+
+		const auto& hEntity = pPlayer->GetRefEHandle();
+		if (!hEntity.IsValid())
+			continue;
+
+		auto& vRecords = m_mRecords[hEntity.ToInt()];
+		if (!H::Entities.GetDeltaTime(iIndex))
+			continue;
 
 		TickRecord* pLastRecord = !vRecords.empty() ? &vRecords.front() : nullptr;
 		vRecords.emplace_front(
@@ -230,7 +253,7 @@ void CBacktrack::MakeRecords()
 			pPlayer->m_vecOrigin(),
 			pPlayer->m_vecMins(),
 			pPlayer->m_vecMaxs(),
-			m_mDidShoot[pPlayer->entindex()]
+			m_aShotHandles[iIndex] == hEntity
 		);
 		TickRecord& tCurRecord = vRecords.front();
 
@@ -254,7 +277,7 @@ void CBacktrack::MakeRecords()
 			if (vDelta.Length2DSqr() > flDist)
 			{
 				bLagComp = true;
-				if (!H::Entities.GetLagCompensation(pPlayer->entindex()))
+				if (!H::Entities.GetLagCompensation(iIndex))
 					vRecords.resize(1);
 				std::for_each(vRecords.begin() + 1, vRecords.end(), [](auto& tRecord) { tRecord.m_bInvalid = true; });
 			}
@@ -272,30 +295,31 @@ void CBacktrack::MakeRecords()
 			}
 		}
 
-		H::Entities.SetLagCompensation(pPlayer->entindex(), bLagComp);
-		m_mDidShoot[pPlayer->entindex()] = false;
+		H::Entities.SetLagCompensation(iIndex, bLagComp);
+		m_aShotHandles[iIndex].Term();
 	}
 }
 
 void CBacktrack::CleanRecords()
 {
-	for (auto& pEntity : H::Entities.GetGroup(EntityEnum::PlayerAll))
+	if (!I::ClientEntityList || !I::EngineClient || !I::GlobalVars || m_mRecords.empty())
+		return;
+
+	const int iLocalIndex = H::Entities.GetLocalPlayerIndex();
+	const int flDeadtime = I::GlobalVars->curtime + GetReal() - m_flMaxUnlag;
+	for (auto it = m_mRecords.begin(); it != m_mRecords.end();)
 	{
-		auto pPlayer = pEntity->As<CTFPlayer>();
-		if (pPlayer->entindex() == I::EngineClient->GetLocalPlayer())
-			continue;
+		auto pPlayer = CHandle<CTFPlayer>::FromIndex(it->first).Get();
 
-		auto& vRecords = m_mRecords[pPlayer];
-
-		if (!pPlayer->IsAlive() || pPlayer->IsAGhost())
+		if (!pPlayer || !pPlayer->IsPlayer() || pPlayer->entindex() == iLocalIndex || !pPlayer->IsAlive() || pPlayer->IsAGhost())
 		{
-			vRecords.clear();
+			it = m_mRecords.erase(it);
 			continue;
 		}
 
-		//const int iOldSize = pRecords.size();
+		auto& vRecords = it->second;
+		const bool bHadRecords = !vRecords.empty();
 
-		const int flDeadtime = I::GlobalVars->curtime + GetReal() - m_flMaxUnlag; // int ???
 		if (vRecords.size() > 1 && vRecords.back().m_flSimTime == std::numeric_limits<float>::max())
 			vRecords.pop_back();
 		while (!vRecords.empty())
@@ -306,9 +330,9 @@ void CBacktrack::CleanRecords()
 				break;
 		}
 
-		//const int iNewSize = pRecords.size();
-		//if (iOldSize != iNewSize)
-		//	SDK::Output("Clear", std::format("{} -> {}", iOldSize, iNewSize).c_str(), { 255, 0, 200 }, Vars::Debug::Logging.Value);
+		if (bHadRecords && vRecords.empty())
+			std::deque<TickRecord>().swap(vRecords);
+		++it;
 	}
 }
 
@@ -329,24 +353,22 @@ void CBacktrack::Store()
 
 void CBacktrack::ResolverUpdate(CBaseEntity* pEntity)
 {
-	/*
-	if (!m_mRecords.contains(pEntity))
-		return;
-
-	m_mRecords[pEntity].clear();
-	*/
 }
 
 void CBacktrack::ReportShot(int iIndex)
 {
-	if (!Vars::Backtrack::PreferOnShot.Value)
+	if (!Vars::Backtrack::PreferOnShot.Value || !I::ClientEntityList || iIndex <= 0 || iIndex >= int(m_aShotHandles.size()))
 		return;
 
 	auto pEntity = I::ClientEntityList->GetClientEntity(iIndex);
-	if (!pEntity || SDK::GetWeaponType(pEntity->As<CTFPlayer>()->m_hActiveWeapon()->As<CTFWeaponBase>()) != EWeaponType::HITSCAN)
+	if (!pEntity || !pEntity->As<CBaseEntity>()->IsPlayer())
 		return;
 
-	m_mDidShoot[pEntity->entindex()] = true;
+	auto pWeapon = pEntity->As<CTFPlayer>()->m_hActiveWeapon().Get();
+	if (!pWeapon || SDK::GetWeaponType(pWeapon->As<CTFWeaponBase>()) != EWeaponType::HITSCAN)
+		return;
+
+	m_aShotHandles[iIndex] = pEntity->GetRefEHandle();
 }
 
 void CBacktrack::AdjustPing(CNetChannel* pNetChan)

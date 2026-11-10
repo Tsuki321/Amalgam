@@ -537,11 +537,10 @@ static inline void HandleFace(Face_t& tFace, std::vector<Setup_t>& vPoints, floa
 	float flRadius2Sqr = flRadiusSqr * 4;
 	int nMask = F::ProjSim.m_bPhysics ? MASK_SHOT | CONTENTS_DISPSOLID : MASK_SHOT;
 
-	std::vector<Vec3> vVertices, vEpsilon;
-	if (tFace.m_iType != FaceTypeEnum::Prop)
-		vVertices = tFace.m_vVertices;
-	else
-		Math::ExpandPolygon(vVertices, tFace.m_vVertices, tFace.m_vNormal, SDK::StdRandomFloat(0.f, DIST_EPSILON), &vTargetEye);
+	std::vector<Vec3> vOriginal, vEpsilon;
+	if (tFace.m_iType == FaceTypeEnum::Prop)
+		Math::ExpandPolygon(vOriginal, tFace.m_vVertices, tFace.m_vNormal, SDK::StdRandomFloat(0.f, DIST_EPSILON), &vTargetEye);
+	const auto& vVertices = tFace.m_iType == FaceTypeEnum::Prop ? vOriginal : tFace.m_vVertices;
 
 	for (int i = 0, n = int(tFace.m_vVertices.size()), o = SDK::StdRandomInt(0, n - 1); ++i < n - 1;)
 	{
@@ -775,9 +774,9 @@ void CAimbotProjectile::SetupSplashPoints(Vec3& vOrigin, std::vector<Setup_t>& v
 #endif
 }
 
-std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vector<Setup_t>& vSplashPoints, int iSimTime, uint8_t iFlags, bool bFirst)
+void CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vector<Setup_t>& vSplashPoints, std::vector<Point_t>& vPoints, int iSimTime, uint8_t iFlags, bool bFirst)
 {
-	std::vector<Point_t> vPoints = {};
+	vPoints.clear();
 
 	m_tInfo.m_pTarget->m_vPos = vOrigin;
 	Vec3 vTargetEye = vOrigin + m_tInfo.m_vTargetEye;
@@ -817,7 +816,7 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 	});
 	vSplashPoints.erase(itEnd, vSplashPoints.end());
 	if (vPoints.empty())
-		return vPoints;
+		return;
 
 	if (bSort)
 	{
@@ -847,8 +846,6 @@ std::vector<Point_t> CAimbotProjectile::GetSplashPoints(Vec3 vOrigin, std::vecto
 	});
 	vPoints.erase(itValidEnd, vPoints.end());
 	m_tInfo.m_pTarget->m_pEntity->SetAbsOrigin(vOriginal);
-
-	return vPoints;
 }
 
 static inline Vec3 PullPoint(const Vec3& vPoint, Vec3 vLocalPos, Info_t& tInfo, const Vec3& vTargetPos, const Vec3& vMins, const Vec3& vMaxs)
@@ -1519,10 +1516,10 @@ bool CAimbotProjectile::HandleSplash(SplashHistory_t& mSplashHistory)
 	{
 		iFlags |= CalculateFlagsEnum::Accuracy;
 		float flLowestDistance = std::numeric_limits<float>::max(); bool bFirst = true;
+		std::vector<Point_t> vSplashPoints = {};
 		for (auto& tHistory : vSplashHistory)
 		{
-			std::vector<Point_t> vSplashPoints = {};
-			vSplashPoints = GetSplashPoints(tHistory.m_vOrigin, m_vSplashPoints, tHistory.m_iSimtime, iFlags, bFirst); bFirst = false;
+			GetSplashPoints(tHistory.m_vOrigin, m_vSplashPoints, vSplashPoints, tHistory.m_iSimtime, iFlags, bFirst); bFirst = false;
 
 			for (auto& tPoint : vSplashPoints)
 			{

@@ -22,11 +22,7 @@ private:
 		int m_iFlags = 0;
 	};
 
-	// Object pool to eliminate per-frame allocations
-	std::vector<ChamsInfo_t> m_vEntityPool = {};
-	size_t m_iPoolUsed = 0;
-
-	std::vector<ChamsInfo_t*> m_vEntities = {};
+	std::vector<ChamsInfo_t> m_vEntities = {};
 
 	Color_t m_tOriginalColor = {};
 	float m_flOriginalBlend = 1.f;

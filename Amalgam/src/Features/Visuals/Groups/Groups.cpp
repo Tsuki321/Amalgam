@@ -373,7 +373,8 @@ void CGroups::Store(CTFPlayer* pLocal)
 		return;
 
 	Group_t* pGroup = nullptr;
-	for (int n = 1; n <= I::ClientEntityList->GetHighestEntityIndex(); n++)
+	const int iHighestEntityIndex = I::ClientEntityList->GetHighestEntityIndex();
+	for (int n = 1; n <= iHighestEntityIndex; n++)
 	{
 		auto pEntity = I::ClientEntityList->GetClientEntity(n)->As<CBaseEntity>();
 		if (!pEntity)
@@ -391,14 +392,11 @@ bool CGroups::GetGroup(CBaseEntity* pEntity, Group_t*& pGroup, bool bModels)
 	if (!GroupsActive())
 		return false;
 
-	if (!bModels && m_mEntities.contains(pEntity))
+	const auto& mGroups = bModels ? m_mModels : m_mEntities;
+	auto it = mGroups.find(pEntity);
+	if (it != mGroups.end())
 	{
-		pGroup = m_mEntities[pEntity];
-		return true;
-	}
-	else if (bModels && m_mModels.contains(pEntity))
-	{
-		pGroup = m_mModels[pEntity];
+		pGroup = it->second;
 		return true;
 	}
 

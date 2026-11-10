@@ -128,40 +128,18 @@ void CChams::DrawModel(CBaseEntity* pEntity, const Chams_t& tChams, IMatRenderCo
 
 void CChams::Store(CTFPlayer* pLocal)
 {
-	m_iPoolUsed = 0;
 	m_vEntities.clear();
 	if (!pLocal || !F::Groups.GroupsActive())
 		return;
 
-	// Pre-allocate pool to prevent reallocation during Store()
-	// Estimate: typical frame has 32 players + 12 buildings + 20 projectiles + 3 special = ~67 entities
-	// Reserve 128 to handle peak scenarios without reallocation
-	if (m_vEntityPool.capacity() < 128)
-		m_vEntityPool.reserve(128);
-
-	auto AllocateChamsInfo = [this]() -> ChamsInfo_t*
-	{
-		if (m_iPoolUsed >= m_vEntityPool.size())
-			m_vEntityPool.resize(m_iPoolUsed + 1);
-		return &m_vEntityPool[m_iPoolUsed++];
-	};
-
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup())
 	{
-		if (pEntity->IsDormant() || !pEntity->ShouldDraw())
+		if (!pEntity || !pGroup || pEntity->IsDormant() || !pEntity->ShouldDraw())
 			continue;
 
 		if (pGroup->m_tChams() && !pEntity->IsWearableVM()
 			&& SDK::IsOnScreen(pEntity, pEntity->IsBaseCombatWeapon() || pEntity->IsWearable()))
-		{
-			ChamsInfo_t* pInfo = AllocateChamsInfo();
-			pInfo->m_pEntity = pEntity;
-			pInfo->m_pChams = &pGroup->m_tChams;
-			pInfo->m_iFlags = 0;
-
-			// Hash update handled by DrawModel() before rendering
-			m_vEntities.push_back(pInfo);
-		}
+			m_vEntities.push_back({ pEntity, &pGroup->m_tChams, 0 });
 
 		if (pEntity->IsPlayer() && pEntity != pLocal && pGroup->m_iBacktrack & BacktrackEnum::Enabled && pGroup->m_tBacktrackChams(false)
 			&& (F::Backtrack.GetFakeLatency() || F::Backtrack.GetFakeInterp() > G::Lerp || F::Backtrack.GetWindow()))
@@ -176,15 +154,7 @@ void CChams::Store(CTFPlayer* pLocal)
 					bShowFriendly = true, bShowEnemy = false;
 
 				if (bShowEnemy && pEntity->m_iTeamNum() != pLocal->m_iTeamNum() || bShowFriendly && pEntity->m_iTeamNum() == pLocal->m_iTeamNum())
-				{
-					ChamsInfo_t* pInfo = AllocateChamsInfo();
-					pInfo->m_pEntity = pEntity;
-					pInfo->m_pChams = &pGroup->m_tBacktrackChams;
-					pInfo->m_iFlags = pGroup->m_iBacktrack;
-
-					// Hash update handled by DrawModel() before rendering
-					m_vEntities.push_back(pInfo);
-				}
+					m_vEntities.push_back({ pEntity, &pGroup->m_tBacktrackChams, pGroup->m_iBacktrack });
 			}
 		}
 	}
@@ -193,56 +163,50 @@ void CChams::Store(CTFPlayer* pLocal)
 	if (F::FakeAngle.bDrawChams && F::FakeAngle.bBonesSetup
 		&& F::Groups.GetGroup(TargetsEnum::FakeAngle, pGroup) && pGroup->m_tChams(false))
 	{	// fakeangle
-		ChamsInfo_t* pInfo = AllocateChamsInfo();
-		pInfo->m_pEntity = pLocal;
-		pInfo->m_pChams = &pGroup->m_tChams;
-		pInfo->m_iFlags = 1;
-
-		// Hash update handled by DrawModel() before rendering
-		m_vEntities.push_back(pInfo);
+		m_vEntities.push_back({ pLocal, &pGroup->m_tChams, 1 });
 	}
 }
 
 void CChams::RenderMain()
 {
+	if (m_vEntities.empty())
+		return;
+
 	auto pRenderContext = I::MaterialSystem->GetRenderContext();
 	if (!pRenderContext)
 		return;
 
-	if (m_vEntities.empty())
-		return;
-
 	pRenderContext->ClearBuffers(false, false, true);
 
-	for (auto* pInfo : m_vEntities)
+	for (auto& tInfo : m_vEntities)
 	{
-		if (!pInfo->m_iFlags)
-			DrawModel(pInfo->m_pEntity, *pInfo->m_pChams, pRenderContext, ModelEnum::Visible, true);
+		if (!tInfo.m_iFlags)
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true);
 		else
 		{
-			m_iFlags = pInfo->m_iFlags;
+			m_iFlags = tInfo.m_iFlags;
 
-			auto pPlayer = pInfo->m_pEntity->As<CTFPlayer>();
+			auto pPlayer = tInfo.m_pEntity->As<CTFPlayer>();
 			const float flOldInvisibility = pPlayer->m_flInvisibility();
 			pPlayer->m_flInvisibility() = 0.f;
-			DrawModel(pInfo->m_pEntity, *pInfo->m_pChams, pRenderContext, ModelEnum::Visible, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Visible, true);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
 			m_iFlags = 0;
 		}
 	}
-	for (auto* pInfo : m_vEntities)
+	for (auto& tInfo : m_vEntities)
 	{
-		if (!pInfo->m_iFlags)
-			DrawModel(pInfo->m_pEntity, *pInfo->m_pChams, pRenderContext, ModelEnum::Occluded, true);
+		if (!tInfo.m_iFlags)
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true);
 		else
 		{
-			m_iFlags = pInfo->m_iFlags;
+			m_iFlags = tInfo.m_iFlags;
 
-			auto pPlayer = pInfo->m_pEntity->As<CTFPlayer>();
+			auto pPlayer = tInfo.m_pEntity->As<CTFPlayer>();
 			const float flOldInvisibility = pPlayer->m_flInvisibility();
 			pPlayer->m_flInvisibility() = 0.f;
-			DrawModel(pInfo->m_pEntity, *pInfo->m_pChams, pRenderContext, ModelEnum::Occluded, true);
+			DrawModel(tInfo.m_pEntity, *tInfo.m_pChams, pRenderContext, ModelEnum::Occluded, true);
 			pPlayer->m_flInvisibility() = flOldInvisibility;
 
 			m_iFlags = 0;
