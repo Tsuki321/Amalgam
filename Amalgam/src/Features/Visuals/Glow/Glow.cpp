@@ -246,7 +246,7 @@ void CGlow::RenderBacktrack(const DrawModelState_t& pState, const ModelRenderInf
 	std::vector<TickRecord*> vRecords = {};
 	if (!F::Backtrack.GetRecords(pEntity, vRecords))
 		return;
-	vRecords = F::Backtrack.GetValidRecords(vRecords);
+	F::Backtrack.GetValidRecords(vRecords);
 	if (!vRecords.size())
 		return;
 

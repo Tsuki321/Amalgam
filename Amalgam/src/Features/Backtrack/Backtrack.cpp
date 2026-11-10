@@ -145,48 +145,48 @@ bool CBacktrack::GetRecords(CBaseEntity* pEntity, std::vector<TickRecord*>& vRet
 	return true;
 }
 
-std::vector<TickRecord*> CBacktrack::GetValidRecords(std::vector<TickRecord*>& vRecords, CTFPlayer* pLocal, bool bDistance, float flTimeMod)
+void CBacktrack::GetValidRecords(std::vector<TickRecord*>& vRecords, CTFPlayer* pLocal, bool bDistance, float flTimeMod)
 {
 	if (vRecords.empty())
-		return {};
+		return;
 
-	auto pNetChan = I::EngineClient->GetNetChannelInfo();
+	auto pNetChan = I::EngineClient ? I::EngineClient->GetNetChannelInfo() : nullptr;
 	if (!pNetChan)
-		return {};
+	{
+		vRecords.clear();
+		return;
+	}
 
-	std::vector<TickRecord*> vReturn = {};
 	float flCorrect = std::clamp(GetReal(MAX_FLOWS, false) + ROUND_TO_TICKS(GetFakeInterp()), 0.f, m_flMaxUnlag) + flTimeMod;
 	int iServerTick = m_iTickCount + TIME_TO_TICKS(GetReal(FLOW_OUTGOING)) + GetAnticipatedChoke() + Vars::Backtrack::Offset.Value;
+	const float flWindow = GetWindow();
+	const bool bWindow = !F::AntiCheatCompatibility.Active() && flWindow;
 
-	if (!F::AntiCheatCompatibility.Active() && GetWindow())
+	size_t iValid = 0;
+	TickRecord* pFallback = nullptr;
+	float flMinDelta = 0.2f;
+	for (auto pRecord : vRecords)
 	{
-		for (auto pRecord : vRecords)
+		float flDelta = flCorrect - TICKS_TO_TIME(iServerTick - TIME_TO_TICKS(pRecord->m_flSimTime));
+		if (bWindow && !(fabsf(flDelta) > flWindow))
 		{
-			float flDelta = flCorrect - TICKS_TO_TIME(iServerTick - TIME_TO_TICKS(pRecord->m_flSimTime));
-			if (fabsf(flDelta) > GetWindow())
-				continue;
-
-			vReturn.push_back(pRecord);
+			vRecords[iValid++] = pRecord;
+			continue;
 		}
-	}
 
-	if (vReturn.empty())
-	{	// make sure there is at least 1 record
-		float flMinDelta = 0.2f;
-		for (auto pRecord : vRecords)
+		if (!iValid && !(fabsf(flDelta) > flMinDelta))
 		{
-			float flDelta = flCorrect - TICKS_TO_TIME(iServerTick - TIME_TO_TICKS(pRecord->m_flSimTime));
-			if (fabsf(flDelta) > flMinDelta)
-				continue;
-
 			flMinDelta = flDelta;
-			vReturn = { pRecord };
+			pFallback = pRecord;
 		}
 	}
-	else if (pLocal && vReturn.size() > 1)
+	vRecords.resize(iValid);
+	if (vRecords.empty() && pFallback)
+		vRecords.push_back(pFallback);
+	else if (pLocal && vRecords.size() > 1)
 	{
 		if (bDistance)
-			std::sort(vReturn.begin(), vReturn.end(), [&](const TickRecord* a, const TickRecord* b) -> bool
+			std::sort(vRecords.begin(), vRecords.end(), [&](const TickRecord* a, const TickRecord* b) -> bool
 			{
 				if (Vars::Backtrack::PreferOnShot.Value && a->m_bOnShot != b->m_bOnShot)
 					return a->m_bOnShot > b->m_bOnShot;
@@ -194,7 +194,7 @@ std::vector<TickRecord*> CBacktrack::GetValidRecords(std::vector<TickRecord*>& v
 				return pLocal->m_vecOrigin().DistToSqr(a->m_vOrigin) < pLocal->m_vecOrigin().DistToSqr(b->m_vOrigin);
 			});
 		else
-			std::sort(vReturn.begin(), vReturn.end(), [&](const TickRecord* a, const TickRecord* b) -> bool
+			std::sort(vRecords.begin(), vRecords.end(), [&](const TickRecord* a, const TickRecord* b) -> bool
 			{
 				if (Vars::Backtrack::PreferOnShot.Value && a->m_bOnShot != b->m_bOnShot)
 					return a->m_bOnShot > b->m_bOnShot;
@@ -204,8 +204,6 @@ std::vector<TickRecord*> CBacktrack::GetValidRecords(std::vector<TickRecord*>& v
 				return fabsf(flADelta) < fabsf(flBDelta);
 			});
 	}
-
-	return vReturn;
 }
 
 matrix3x4* CBacktrack::GetBones(CBaseEntity* pEntity)

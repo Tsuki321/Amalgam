@@ -1,6 +1,5 @@
 #pragma once
 #include "../../../SDK/SDK.h"
-#include <initializer_list>
 
 struct Text_t
 {
@@ -49,7 +48,7 @@ private:
 	void DrawWorld();
 
 	bool GetDrawBounds(CBaseEntity* pEntity, float& x, float& y, float& w, float& h);
-	void DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, std::initializer_list<int> vBones, Color_t tColor);
+	void DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, Color_t tColor);
 
 	// Persistent caches - only rebuild entries that changed
 	std::unordered_map<CBaseEntity*, PlayerCache_t> m_mPlayerCache = {};

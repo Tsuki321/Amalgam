@@ -750,7 +750,7 @@ void CESP::Store(CTFPlayer* pLocal)
 
 	for (auto& [pEntity, pGroup] : F::Groups.GetGroup(false))
 	{
-		if (!pEntity || !pGroup || !pGroup->m_iESP)
+		if (!pEntity || !pGroup || !pGroup->m_iESP || !pGroup->m_tColor.a)
 			continue;
 
 		if (pEntity->IsPlayer())
@@ -812,29 +812,7 @@ void CESP::DrawPlayers()
 		{
 			auto pPlayer = pEntity->As<CTFPlayer>();
 			if (pPlayer->SetupBones(s_aBones, MAXSTUDIOBONES, BONE_USED_BY_ANYTHING, I::GlobalVars->curtime))
-			{
-				int iHead = pPlayer->GetBaseToHitbox(HITBOX_HEAD);
-				int iSpine2 = pPlayer->GetBaseToHitbox(HITBOX_SPINE2);
-				int iPelvis = pPlayer->GetBaseToHitbox(HITBOX_PELVIS);
-				int iLeftUpperarm = pPlayer->GetBaseToHitbox(HITBOX_LEFT_UPPERARM);
-				int iLeftForearm = pPlayer->GetBaseToHitbox(HITBOX_LEFT_FOREARM);
-				int iLeftHand = pPlayer->GetBaseToHitbox(HITBOX_LEFT_HAND);
-				int iRightUpperarm = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_UPPERARM);
-				int iRightForearm = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_FOREARM);
-				int iRightHand = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_HAND);
-				int iLeftThigh = pPlayer->GetBaseToHitbox(HITBOX_LEFT_THIGH);
-				int iLeftCalf = pPlayer->GetBaseToHitbox(HITBOX_LEFT_CALF);
-				int iLeftFoot = pPlayer->GetBaseToHitbox(HITBOX_LEFT_FOOT);
-				int iRightThigh = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_THIGH);
-				int iRightCalf = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_CALF);
-				int iRightFoot = pPlayer->GetBaseToHitbox(HITBOX_RIGHT_FOOT);
-
-				DrawBones(pPlayer, s_aBones, { iHead, iSpine2, iPelvis }, tCache.m_tColor);
-				DrawBones(pPlayer, s_aBones, { iSpine2, iLeftUpperarm, iLeftForearm, iLeftHand }, tCache.m_tColor);
-				DrawBones(pPlayer, s_aBones, { iSpine2, iRightUpperarm, iRightForearm, iRightHand }, tCache.m_tColor);
-				DrawBones(pPlayer, s_aBones, { iPelvis, iLeftThigh, iLeftCalf, iLeftFoot }, tCache.m_tColor);
-				DrawBones(pPlayer, s_aBones, { iPelvis, iRightThigh, iRightCalf, iRightFoot }, tCache.m_tColor);
-			}
+				DrawBones(pPlayer, s_aBones, tCache.m_tColor);
 		}
 
 		for (auto& [iMode, flPercent, tColor, tOverfill, bAdjust] : tCache.m_vBars)
@@ -1068,15 +1046,54 @@ bool CESP::GetDrawBounds(CBaseEntity* pEntity, float& x, float& y, float& w, flo
 	return !(x > H::Draw.m_nScreenW || x + w < 0 || y > H::Draw.m_nScreenH || y + h < 0);
 }
 
-void CESP::DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, std::initializer_list<int> vBones, Color_t tColor)
+void CESP::DrawBones(CTFPlayer* pPlayer, matrix3x4* aBones, Color_t tColor)
 {
-	for (size_t n = 1; n < vBones.size(); n++)
-	{
-		auto vBone1 = pPlayer->GetHitboxCenter(aBones, vBones.begin()[n]);
-		auto vBone2 = pPlayer->GetHitboxCenter(aBones, vBones.begin()[n - 1]);
+	if (!pPlayer || !aBones)
+		return;
 
-		Vec3 vScreen1, vScreen2;
-		if (SDK::W2S(vBone1, vScreen1) && SDK::W2S(vBone2, vScreen2))
-			H::Draw.Line(vScreen1.x, vScreen1.y, vScreen2.x, vScreen2.y, tColor);
+	auto pSet = pPlayer->GetHitboxSet();
+	if (!pSet)
+		return;
+
+	static constexpr int aHitboxes[] =
+	{
+		HITBOX_HEAD, HITBOX_SPINE2, HITBOX_PELVIS,
+		HITBOX_LEFT_UPPERARM, HITBOX_LEFT_FOREARM, HITBOX_LEFT_HAND,
+		HITBOX_RIGHT_UPPERARM, HITBOX_RIGHT_FOREARM, HITBOX_RIGHT_HAND,
+		HITBOX_LEFT_THIGH, HITBOX_LEFT_CALF, HITBOX_LEFT_FOOT,
+		HITBOX_RIGHT_THIGH, HITBOX_RIGHT_CALF, HITBOX_RIGHT_FOOT
+	};
+	static constexpr int aConnections[][2] =
+	{
+		{ 1, 0 }, { 2, 1 },
+		{ 3, 1 }, { 4, 3 }, { 5, 4 },
+		{ 6, 1 }, { 7, 6 }, { 8, 7 },
+		{ 9, 2 }, { 10, 9 }, { 11, 10 },
+		{ 12, 2 }, { 13, 12 }, { 14, 13 }
+	};
+
+	Vec3 aScreens[std::size(aHitboxes)] = {};
+	bool aVisible[std::size(aHitboxes)] = {};
+	for (size_t i = 0; i < std::size(aHitboxes); i++)
+	{
+		const int iHitbox = pPlayer->GetBaseToHitbox(aHitboxes[i]);
+		if (iHitbox < 0 || iHitbox >= pSet->numhitboxes)
+			continue;
+		auto pBox = pSet->pHitbox(iHitbox);
+		if (!pBox || pBox->bone < 0 || pBox->bone >= MAXSTUDIOBONES)
+			continue;
+
+		Vec3 vCenter;
+		Math::VectorTransform((pBox->bbmin + pBox->bbmax) / 2, aBones[pBox->bone], vCenter);
+		aVisible[i] = SDK::W2S(vCenter, aScreens[i]);
+	}
+
+	for (const auto& aConnection : aConnections)
+	{
+		if (!aVisible[aConnection[0]] || !aVisible[aConnection[1]])
+			continue;
+		const auto& vScreen1 = aScreens[aConnection[0]];
+		const auto& vScreen2 = aScreens[aConnection[1]];
+		H::Draw.Line(vScreen1.x, vScreen1.y, vScreen2.x, vScreen2.y, tColor);
 	}
 }

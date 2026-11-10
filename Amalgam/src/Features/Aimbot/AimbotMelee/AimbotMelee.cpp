@@ -351,7 +351,7 @@ int CAimbotMelee::CanHit(Target_t& tTarget, CTFPlayer* pLocal, CTFWeaponBase* pW
 		for (auto& tRecord : vSimRecords)
 			vRecords.push_back(&tRecord);
 		for (auto iTimeMod : vTimeMods)
-			vRecords = F::Backtrack.GetValidRecords(vRecords, pLocal, true, -TICKS_TO_TIME(iTimeMod));
+			F::Backtrack.GetValidRecords(vRecords, pLocal, true, -TICKS_TO_TIME(iTimeMod));
 		if (vRecords.empty())
 			return false;
 	}

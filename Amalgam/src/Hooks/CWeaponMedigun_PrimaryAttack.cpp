@@ -35,7 +35,7 @@ MAKE_HOOK(CWeaponMedigun_PrimaryAttack, S::CWeaponMedigun_PrimaryAttack(), void,
 		std::vector<TickRecord*> vRecords = {};
 		if (!F::Backtrack.GetRecords(pEntity, vRecords))
 			continue;
-		vRecords = F::Backtrack.GetValidRecords(vRecords);
+		F::Backtrack.GetValidRecords(vRecords);
 		if (!vRecords.size())
 			continue;
 

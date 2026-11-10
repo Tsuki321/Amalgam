@@ -50,7 +50,7 @@ public:
 	void Reset();
 
 	bool GetRecords(CBaseEntity* pEntity, std::vector<TickRecord*>& vReturn);
-	std::vector<TickRecord*> GetValidRecords(std::vector<TickRecord*>& vRecords, CTFPlayer* pLocal = nullptr, bool bDistance = false, float flTimeMod = 0.f);
+	void GetValidRecords(std::vector<TickRecord*>& vRecords, CTFPlayer* pLocal = nullptr, bool bDistance = false, float flTimeMod = 0.f);
 	matrix3x4* GetBones(CBaseEntity* pEntity);
 
 	float GetReal(int iFlow = MAX_FLOWS, bool bNoFake = true);

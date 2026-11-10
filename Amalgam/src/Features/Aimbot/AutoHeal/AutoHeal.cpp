@@ -28,7 +28,7 @@ void CAutoHeal::AutoHeal(CUserCmd* pCmd)
 	std::vector<TickRecord*> vRecords = {};
 	if (!F::Backtrack.GetRecords(pTarget, vRecords))
 		return;
-	vRecords = F::Backtrack.GetValidRecords(vRecords, m_pLocal, true);
+	F::Backtrack.GetValidRecords(vRecords, m_pLocal, true);
 	if (!vRecords.size())
 		return;
 

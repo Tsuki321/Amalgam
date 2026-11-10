@@ -393,7 +393,7 @@ int CAimbotHitscan::CanHit(Target_t& tTarget, CTFPlayer* pLocal, CTFWeaponBase* 
 	std::vector<TickRecord*> vRecords = {};
 	if (F::Backtrack.GetRecords(tTarget.m_pEntity, vRecords) && !bWrangler)
 	{
-		vRecords = F::Backtrack.GetValidRecords(vRecords, pLocal);
+		F::Backtrack.GetValidRecords(vRecords, pLocal);
 		if (vRecords.empty())
 			return false;
 	}
